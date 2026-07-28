@@ -13,7 +13,7 @@ router.get('/stats', protectSales, getSalesStats);
 router.get('/most-sold', protectSales, getMostSold);
 router.get('/', protectSales, getSales);
 router.post('/migrate', protectSales, runMigration);
-router.post('/', protectSales, createSale);
+router.post('/', createSale);
 router.delete('/:id', protectSales, deleteSale);
 
 export default router;
