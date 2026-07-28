@@ -13,6 +13,21 @@ import { createSale } from '../../api/sales';
 import ProductForm from '../../components/ProductForm/ProductForm';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
+const variantLabel = (v) => {
+  const parts = [];
+  if (v.talle) parts.push(v.talle);
+  if (v.color) parts.push(v.color);
+  const label = parts.join(' / ') || 'Sin variante';
+  return `${label} (${v.cantidad})`;
+};
+
+const variantShortLabel = (v) => {
+  const parts = [];
+  if (v.talle) parts.push(v.talle);
+  if (v.color) parts.push(v.color);
+  return parts.join(' / ') || '—';
+};
+
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,23 +36,24 @@ const Products = () => {
   const [editing, setEditing] = useState(null);
   const [dropdown, setDropdown] = useState({ product: null, x: 0, y: 0 });
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [returnModal, setReturnModal] = useState(null);
   const [returnCantidad, setReturnCantidad] = useState('1');
-  const [returnTalle, setReturnTalle] = useState('');
+  const [returnVariantIdx, setReturnVariantIdx] = useState('');
   const [returnMotivo, setReturnMotivo] = useState('');
   const [returnOtroMotivo, setReturnOtroMotivo] = useState('');
   const [exchangeActivo, setExchangeActivo] = useState(false);
   const [exchangeSearch, setExchangeSearch] = useState('');
   const [exchangeTarget, setExchangeTarget] = useState(null);
   const [exchangeCantidad, setExchangeCantidad] = useState('1');
-  const [exchangeTalle, setExchangeTalle] = useState('');
+  const [exchangeVariantIdx, setExchangeVariantIdx] = useState('');
 
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
   const [quickAdd, setQuickAdd] = useState(null);
   const [qaCantidad, setQaCantidad] = useState('1');
-  const [qaTalle, setQaTalle] = useState('');
+  const [qaVariantIdx, setQaVariantIdx] = useState('');
   const [qaPrecio, setQaPrecio] = useState('');
 
   const [sellEmpleado, setSellEmpleado] = useState('');
@@ -46,6 +62,10 @@ const Products = () => {
   const [sellSplit, setSellSplit] = useState(false);
   const [sellMetodo2, setSellMetodo2] = useState('transferencia');
   const [sellMonto2, setSellMonto2] = useState('');
+
+  const [addStockModal, setAddStockModal] = useState(null);
+  const [addStockCantidad, setAddStockCantidad] = useState('1');
+  const [addStockVariantIdx, setAddStockVariantIdx] = useState('');
 
   const cartTotal = cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
   const descuentoNum = sellDescuento === '' ? 0 : Number(sellDescuento);
@@ -71,6 +91,7 @@ const Products = () => {
   }, [search]);
 
   const handleSubmit = async (data) => {
+    setIsSubmitting(true);
     try {
       if (editing) {
         await updateProduct(editing._id, data);
@@ -83,6 +104,8 @@ const Products = () => {
       Swal.fire({ icon: 'success', title: 'Producto guardado', timer: 1500, showConfirmButton: false, background: '#171717', color: '#fff' });
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al guardar producto', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -106,7 +129,7 @@ const Products = () => {
   const openQuickAdd = (product) => {
     setQuickAdd(product);
     setQaCantidad('1');
-    setQaTalle('');
+    setQaVariantIdx('');
     setQaPrecio(String(product.precio));
   };
 
@@ -116,8 +139,8 @@ const Products = () => {
       Swal.fire({ icon: 'warning', title: 'Cantidad inválida', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
       return;
     }
-    if (quickAdd.talles?.length > 0 && !qaTalle) {
-      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe seleccionar un talle', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+    if (quickAdd.variants?.length > 0 && qaVariantIdx === '') {
+      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe seleccionar una variante', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
       return;
     }
     const precio = Number(qaPrecio);
@@ -125,12 +148,14 @@ const Products = () => {
       Swal.fire({ icon: 'warning', title: 'Precio inválido', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
       return;
     }
+    const variant = quickAdd.variants[Number(qaVariantIdx)];
     setCart(prev => [...prev, {
       producto: quickAdd._id,
       nombre: quickAdd.nombre,
       precio,
       cantidad,
-      talle: qaTalle,
+      talle: variant?.talle || '',
+      color: variant?.color || '',
     }]);
     setQuickAdd(null);
     Swal.fire({ icon: 'success', title: 'Agregado al carrito', timer: 1000, showConfirmButton: false, background: '#171717', color: '#fff' });
@@ -172,7 +197,7 @@ const Products = () => {
         ? [{ metodo: sellMetodoPago, monto: Math.round(sellMonto1 * 100) / 100 }, { metodo: sellMetodo2, monto: Math.round(sellMonto2Num * 100) / 100 }]
         : [{ metodo: sellMetodoPago, monto: Math.round(finalTotal * 100) / 100 }];
       await createSale({
-        items: cart.map(i => ({ producto: i.producto, cantidad: i.cantidad, precio: i.precio, talle: i.talle })),
+        items: cart.map(i => ({ producto: i.producto, cantidad: i.cantidad, precio: i.precio, talle: i.talle, color: i.color || '' })),
         empleado: sellEmpleado.trim(),
         pagos,
         descuento: descuentoNum,
@@ -186,23 +211,20 @@ const Products = () => {
     }
   };
 
-  const [addStockModal, setAddStockModal] = useState(null);
-  const [addStockCantidad, setAddStockCantidad] = useState('1');
-  const [addStockTalle, setAddStockTalle] = useState('');
-
   const openAddStock = (product) => {
     setAddStockModal(product);
     setAddStockCantidad('1');
-    setAddStockTalle('');
+    setAddStockVariantIdx('');
   };
 
   const confirmAddStock = async () => {
-    if (addStockModal.talles?.length > 0 && !addStockTalle) {
-      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe seleccionar un talle', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+    if (addStockModal.variants?.length > 0 && addStockVariantIdx === '') {
+      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe seleccionar una variante', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
       return;
     }
+    const variant = addStockModal.variants[Number(addStockVariantIdx)];
     try {
-      await addStock(addStockModal._id, { cantidad: Number(addStockCantidad), talle: addStockTalle });
+      await addStock(addStockModal._id, { cantidad: Number(addStockCantidad), talle: variant?.talle || '', color: variant?.color || '' });
       setAddStockModal(null);
       fetchData();
       Swal.fire({ icon: 'success', title: 'Stock actualizado', timer: 1500, showConfirmButton: false, background: '#171717', color: '#fff' });
@@ -214,14 +236,14 @@ const Products = () => {
   const openReturn = (product) => {
     setReturnModal(product);
     setReturnCantidad('1');
-    setReturnTalle('');
+    setReturnVariantIdx('');
     setReturnMotivo('');
     setReturnOtroMotivo('');
     setExchangeActivo(false);
     setExchangeSearch('');
     setExchangeTarget(null);
     setExchangeCantidad(1);
-    setExchangeTalle('');
+    setExchangeVariantIdx('');
   };
 
   const getReturnMotivo = () => returnMotivo === 'Otro' ? returnOtroMotivo.trim() : returnMotivo.trim();
@@ -232,30 +254,35 @@ const Products = () => {
       Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe ingresar un motivo', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
       return;
     }
-    if (returnModal.talles?.length > 0 && !returnTalle) {
-      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe seleccionar el talle del producto a devolver', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+    if (returnModal.variants?.length > 0 && returnVariantIdx === '') {
+      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe seleccionar la variante a devolver', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
       return;
     }
-    if (exchangeTarget?.talles?.length > 0 && !exchangeTalle) {
-      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe seleccionar el talle del producto nuevo', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+    if (exchangeTarget?.variants?.length > 0 && exchangeVariantIdx === '') {
+      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe seleccionar la variante del producto nuevo', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
       return;
     }
+    const retVariant = returnModal.variants?.[Number(returnVariantIdx)];
+    const excVariant = exchangeTarget?.variants?.[Number(exchangeVariantIdx)];
     try {
       if (exchangeTarget) {
         await exchangeProduct({
           productoDevolver: returnModal._id,
           cantidadDevolver: Number(returnCantidad),
-          talleDevolver: returnTalle,
+          talleDevolver: retVariant?.talle || '',
+          colorDevolver: retVariant?.color || '',
           productoCargar: exchangeTarget._id,
           cantidadCargar: Number(exchangeCantidad),
-          talleCargar: exchangeTalle,
+          talleCargar: excVariant?.talle || '',
+          colorCargar: excVariant?.color || '',
           motivo: motivoFinal,
         });
       } else {
         await createReturn({
           producto: returnModal._id,
           cantidad: Number(returnCantidad),
-          talle: returnTalle,
+          talle: retVariant?.talle || '',
+          color: retVariant?.color || '',
           motivo: motivoFinal,
         });
       }
@@ -276,6 +303,25 @@ const Products = () => {
   const openCreate = () => {
     setEditing(null);
     setShowForm(true);
+  };
+
+  const renderVariantSelect = (variants, value, onChange, label = 'Variante') => {
+    if (!variants?.length) return null;
+    return (
+      <div className="mb-4">
+        <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">{label} <span className="text-red-400">*</span></label>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
+        >
+          <option value="" className="bg-neutral-900">Seleccionar...</option>
+          {variants.map((v, i) => (
+            <option key={i} value={String(i)} className="bg-neutral-900">{variantLabel(v)}</option>
+          ))}
+        </select>
+      </div>
+    );
   };
 
   return (
@@ -326,6 +372,7 @@ const Products = () => {
                 setShowForm(false);
                 setEditing(null);
               }}
+              isSubmitting={isSubmitting}
             />
           </div>
         </div>
@@ -361,21 +408,7 @@ const Products = () => {
                   className="w-full px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
-              {quickAdd.talles?.length > 0 && (
-                <div>
-                  <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Talle <span className="text-red-400">*</span></label>
-                  <select
-                    value={qaTalle}
-                    onChange={(e) => setQaTalle(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
-                  >
-                    <option value="" className="bg-neutral-900">Seleccionar...</option>
-                    {quickAdd.talles.map((t) => (
-                      <option key={t.talle} value={t.talle} className="bg-neutral-900">{t.talle} ({t.cantidad})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              {renderVariantSelect(quickAdd.variants, qaVariantIdx, setQaVariantIdx)}
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button
@@ -405,6 +438,13 @@ const Products = () => {
                 <div key={idx} className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/5 rounded-lg">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white truncate">{item.nombre}</p>
+                    {(item.talle || item.color) && (
+                      <p className="text-xs text-white/40 mt-0.5">
+                        {item.talle && <span>Talle: {item.talle}</span>}
+                        {item.talle && item.color && <span> | </span>}
+                        {item.color && <span>Color: {item.color}</span>}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <input
@@ -565,20 +605,7 @@ const Products = () => {
             <p className="text-white/50 text-sm mb-4">
               <span className="text-white font-semibold">{addStockModal.nombre}</span> — Stock actual: {addStockModal.cantidad}
             </p>
-            {addStockModal.talles?.length > 0 && (
-              <div className="mb-4">
-                <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Talle <span className="text-red-400">*</span></label>
-                <select
-                  value={addStockTalle}
-                  onChange={(e) => setAddStockTalle(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
-                >
-                  {addStockModal.talles.map((t) => (
-                    <option key={t.talle} value={t.talle} className="bg-neutral-900">{t.talle} ({t.cantidad})</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {renderVariantSelect(addStockModal.variants, addStockVariantIdx, setAddStockVariantIdx)}
             <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
               ¿Cuántas unidades entraron?
             </label>
@@ -635,20 +662,7 @@ const Products = () => {
                 />
               </div>
 
-              {returnModal.talles?.length > 0 && (
-                <div>
-                  <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Talle a devolver <span className="text-red-400">*</span></label>
-                  <select
-                    value={returnTalle}
-                    onChange={(e) => setReturnTalle(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
-                  >
-                    {returnModal.talles.map((t) => (
-                      <option key={t.talle} value={t.talle} className="bg-neutral-900">{t.talle}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              {renderVariantSelect(returnModal.variants, returnVariantIdx, setReturnVariantIdx, 'Variante a devolver')}
 
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -688,6 +702,7 @@ const Products = () => {
                             setExchangeTarget(p);
                             setExchangeSearch('');
                             setExchangeCantidad('1');
+                            setExchangeVariantIdx('');
                           }}
                           className={`w-full text-left px-3 py-2 text-sm border-b border-white/5 last:border-0 transition-colors ${
                             exchangeTarget?._id === p._id ? 'bg-purple-500/10 text-purple-300 font-semibold' : 'text-white/60 hover:bg-white/5'
@@ -706,20 +721,7 @@ const Products = () => {
                         <br />
                         <span className="font-semibold">Stock disponible:</span> {exchangeTarget.cantidad}
                       </p>
-                      {exchangeTarget.talles?.length > 0 && (
-                        <div className="mb-3">
-                          <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Talle a cargar <span className="text-purple-400">*</span></label>
-                          <select
-                            value={exchangeTalle}
-                            onChange={(e) => setExchangeTalle(e.target.value)}
-                            className="w-full px-3 py-2.5 bg-white/[0.07] border border-purple-500/20 rounded-lg text-white focus:outline-none focus:border-purple-500/40 transition-all text-sm"
-                          >
-                            {exchangeTarget.talles.map((t) => (
-                              <option key={t.talle} value={t.talle} className="bg-neutral-900">{t.talle} ({t.cantidad})</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
+                      {renderVariantSelect(exchangeTarget.variants, exchangeVariantIdx, setExchangeVariantIdx, 'Variante a cargar')}
                       <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
                         Cantidad a cargar
                       </label>
@@ -787,8 +789,8 @@ const Products = () => {
             <thead className="bg-white/5">
               <tr>
                 <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Nombre</th>
+                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Detalle</th>
                 <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Precio</th>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Talles</th>
                 <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Total</th>
                 <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Categoría</th>
                 <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Proveedor</th>
@@ -806,24 +808,35 @@ const Products = () => {
                 products.map((p) => (
                   <tr key={p._id} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
                     <td className="px-4 py-3 font-medium text-white">{p.nombre}</td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs leading-relaxed space-y-0.5">
+                        {p.colores?.length > 0
+                          ? p.colores.map((color) => {
+                              const vars = p.variants.filter((v) => v.color === color);
+                              return (
+                                <div key={color}>
+                                  <span className="font-semibold text-white/80">{color}: </span>
+                                  {vars.length > 0
+                                    ? vars.map((v, i) => (
+                                        <span key={i} className="text-white/50">
+                                          {v.talle}({v.cantidad}){i < vars.length - 1 ? ' · ' : ''}
+                                        </span>
+                                      ))
+                                    : <span className="text-white/30">—</span>}
+                                </div>
+                              );
+                            })
+                          : p.variants?.length > 0
+                            ? p.variants.map((v, i) => (
+                                <span key={i} className="text-white/50">
+                                  {variantShortLabel(v)}:{v.cantidad}{i < p.variants.length - 1 ? ', ' : ''}
+                                </span>
+                              ))
+                            : <span className="text-white/30">—</span>}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-white/70">
                       {p.precio != null ? `$${Number(p.precio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {p.talles?.length > 0 ? (
-                          p.talles.map((t) => {
-                            const cls = t.cantidad <= 0 ? 'bg-red-500/20 text-red-400' : t.cantidad <= 3 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400';
-                            return (
-                              <span key={t.talle} className={`inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-full ${cls}`}>
-                                {t.talle}:{t.cantidad}
-                              </span>
-                            );
-                          })
-                        ) : (
-                          <span className="text-white/20 text-xs">—</span>
-                        )}
-                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1.5 ${(p.stockMinimo != null && p.cantidad <= p.stockMinimo) ? 'text-red-400 font-semibold' : 'text-white/60'}`}>

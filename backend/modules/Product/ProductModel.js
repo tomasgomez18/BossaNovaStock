@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 
-const talleSubSchema = new mongoose.Schema({
-  talle: { type: String, required: true, trim: true },
+const variantSubSchema = new mongoose.Schema({
+  talle: { type: String, trim: true, default: '' },
+  color: { type: String, trim: true, default: '' },
   cantidad: { type: Number, required: true, min: 0, default: 0 },
 }, { _id: false });
 
@@ -23,8 +24,12 @@ const productSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
-    talles: {
-      type: [talleSubSchema],
+    variants: {
+      type: [variantSubSchema],
+      default: [],
+    },
+    colores: {
+      type: [String],
       default: [],
     },
     categoria: {
@@ -47,7 +52,8 @@ const productSchema = new mongoose.Schema(
 );
 
 productSchema.pre('save', function (next) {
-  this.cantidad = this.talles.reduce((sum, t) => sum + t.cantidad, 0);
+  this.cantidad = this.variants.reduce((sum, v) => sum + v.cantidad, 0);
+  this.talles = undefined;
   next();
 });
 

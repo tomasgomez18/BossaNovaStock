@@ -5,11 +5,12 @@ import Return from '../Return/ReturnModel.js';
 import DailyClose from './DailyCloseModel.js';
 import { createSaleSchema } from './SaleSchema.js';
 
-const parseDate = (str) => {
+const parseDate = (str, offset = 0) => {
   if (!str) return null;
   const [y, m, d] = str.split('-').map(Number);
   if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
-  return new Date(y, m - 1, d);
+  const utcDate = Date.UTC(y, m - 1, d);
+  return new Date(utcDate + offset * 60000);
 };
 
 const todayDateRange = () => {
@@ -22,7 +23,11 @@ const todayDateRange = () => {
 const getItems = (sale) => {
   return (sale.items && sale.items.length > 0)
     ? sale.items
-    : [{ producto: sale.producto, cantidad: sale.cantidad, precio: sale.precio, talle: sale.talle, subtotal: sale.total }];
+    : [{ producto: sale.producto, cantidad: sale.cantidad, precio: sale.precio, talle: sale.talle, color: '', subtotal: sale.total }];
+};
+
+const findVariantIdx = (product, talle, color) => {
+  return product.variants.findIndex((v) => v.talle === (talle || '') && v.color === (color || ''));
 };
 
 export const createSale = async (req, res, next) => {
@@ -39,24 +44,20 @@ export const createSale = async (req, res, next) => {
         return res.status(404).json({ message: `Producto ${item.producto} no encontrado` });
       }
 
-      if (product.talles?.length > 0 && !item.talle) {
-        await session.abortTransaction();
-        return res.status(400).json({ message: `Debe seleccionar un talle para "${product.nombre}"` });
-      }
-
-      if (item.talle) {
-        const idx = product.talles.findIndex((t) => t.talle === item.talle);
+      if (product.variants?.length > 0) {
+        const idx = findVariantIdx(product, item.talle, item.color);
         if (idx === -1) {
+          const label = [item.talle, item.color].filter(Boolean).join(' / ') || 'sin variante';
           await session.abortTransaction();
-          return res.status(400).json({ message: `Talle "${item.talle}" no encontrado en "${product.nombre}"` });
+          return res.status(400).json({ message: `Variante "${label}" no encontrada en "${product.nombre}"` });
         }
-        if (product.talles[idx].cantidad < item.cantidad) {
+        if (product.variants[idx].cantidad < item.cantidad) {
           await session.abortTransaction();
           return res.status(400).json({
-            message: `Stock insuficiente para "${product.nombre}" talle "${item.talle}". Solo hay ${product.talles[idx].cantidad} unidad(es).`,
+            message: `Stock insuficiente para "${product.nombre}". Solo hay ${product.variants[idx].cantidad} unidad(es).`,
           });
         }
-        product.talles[idx].cantidad -= item.cantidad;
+        product.variants[idx].cantidad -= item.cantidad;
       } else {
         if (product.cantidad < item.cantidad) {
           await session.abortTransaction();
@@ -74,6 +75,7 @@ export const createSale = async (req, res, next) => {
         cantidad: item.cantidad,
         precio: item.precio,
         talle: item.talle || '',
+        color: item.color || '',
         subtotal: item.precio * item.cantidad,
       });
     }
@@ -131,10 +133,10 @@ export const deleteSale = async (req, res, next) => {
     for (const item of items) {
       const product = await Product.findById(item.producto).session(session);
       if (product) {
-        if (item.talle) {
-          const idx = product.talles.findIndex((t) => t.talle === item.talle);
+        if (product.variants?.length > 0) {
+          const idx = findVariantIdx(product, item.talle, item.color);
           if (idx !== -1) {
-            product.talles[idx].cantidad += item.cantidad;
+            product.variants[idx].cantidad += item.cantidad;
           }
         }
         product.cantidad += item.cantidad;
@@ -155,12 +157,12 @@ export const deleteSale = async (req, res, next) => {
 
 export const getSales = async (req, res, next) => {
   try {
-    const { desde, hasta } = req.query;
+    const { desde, hasta, offset = 0 } = req.query;
     const filter = {};
 
     if (desde || hasta) {
-      const start = parseDate(desde) || new Date(0);
-      const end = parseDate(hasta);
+      const start = parseDate(desde, Number(offset)) || new Date(0);
+      const end = parseDate(hasta, Number(offset));
       filter.createdAt = { $gte: start, $lt: end ? new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1) : new Date(8640000000000000) };
     }
 
@@ -179,12 +181,12 @@ export const getSales = async (req, res, next) => {
 
 export const getMostSold = async (req, res, next) => {
   try {
-    const { desde, hasta, limit = 5 } = req.query;
+    const { desde, hasta, offset = 0, limit = 5 } = req.query;
     const filter = {};
 
     if (desde || hasta) {
-      const start = parseDate(desde) || new Date(0);
-      const end = parseDate(hasta);
+      const start = parseDate(desde, Number(offset)) || new Date(0);
+      const end = parseDate(hasta, Number(offset));
       filter.createdAt = { $gte: start, $lt: end ? new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1) : new Date(8640000000000000) };
     }
 
@@ -290,12 +292,12 @@ export const getDailyClose = async (req, res, next) => {
 
 export const getDailyCloses = async (req, res, next) => {
   try {
-    const { desde, hasta } = req.query;
+    const { desde, hasta, offset = 0 } = req.query;
     const filter = {};
 
     if (desde || hasta) {
-      const start = parseDate(desde) || new Date(0);
-      const end = parseDate(hasta);
+      const start = parseDate(desde, Number(offset)) || new Date(0);
+      const end = parseDate(hasta, Number(offset));
       filter.fecha = {
         $gte: start,
         $lt: end ? new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1) : new Date(8640000000000000),
@@ -304,6 +306,18 @@ export const getDailyCloses = async (req, res, next) => {
 
     const closes = await DailyClose.find(filter).sort({ fecha: -1 });
     res.json(closes);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteDailyClose = async (req, res, next) => {
+  try {
+    const close = await DailyClose.findByIdAndDelete(req.params.id);
+    if (!close) {
+      return res.status(404).json({ message: 'Cierre no encontrado' });
+    }
+    res.json({ message: 'Cierre eliminado correctamente' });
   } catch (error) {
     next(error);
   }
@@ -332,12 +346,12 @@ export const runMigration = async (req, res, next) => {
 
 export const getSalesStats = async (req, res, next) => {
   try {
-    const { desde, hasta } = req.query;
+    const { desde, hasta, offset = 0 } = req.query;
     const filter = {};
 
     if (desde || hasta) {
-      const start = parseDate(desde) || new Date(0);
-      const end = parseDate(hasta);
+      const start = parseDate(desde, Number(offset)) || new Date(0);
+      const end = parseDate(hasta, Number(offset));
       filter.createdAt = { $gte: start, $lt: end ? new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1) : new Date(8640000000000000) };
     }
 

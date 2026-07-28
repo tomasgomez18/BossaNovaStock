@@ -17,6 +17,30 @@ const returnSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    color: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    productoCargar: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
+      default: null,
+    },
+    cantidadCargar: {
+      type: Number,
+      default: 0,
+    },
+    talleCargar: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    colorCargar: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     motivo: {
       type: String,
       required: true,
@@ -27,6 +51,7 @@ const returnSchema = new mongoose.Schema(
 );
 
 returnSchema.index({ producto: 1, createdAt: -1 });
+returnSchema.index({ productoCargar: 1 });
 returnSchema.index({ createdAt: -1 });
 
 export default mongoose.model('Return', returnSchema);

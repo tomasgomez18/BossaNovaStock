@@ -4,6 +4,10 @@ import Product from '../Product/ProductModel.js';
 import Sale from '../Sale/SaleModel.js';
 import { createReturnSchema } from './ReturnSchema.js';
 
+const findVariantIdx = (product, talle, color) => {
+  return product.variants.findIndex((v) => v.talle === (talle || '') && v.color === (color || ''));
+};
+
 export const createReturn = async (req, res, next) => {
   const session = await mongoose.startSession();
   try {
@@ -16,39 +20,50 @@ export const createReturn = async (req, res, next) => {
       return res.status(404).json({ message: 'Producto no encontrado' });
     }
 
-    if (product.talles?.length > 0 && !data.talle) {
-      await session.abortTransaction();
-      return res.status(400).json({ message: 'Debe seleccionar un talle' });
-    }
-
-    if (data.talle) {
-      const idx = product.talles.findIndex((t) => t.talle === data.talle);
+    if (product.variants?.length > 0) {
+      const idx = findVariantIdx(product, data.talle, data.color);
       if (idx === -1) {
-        product.talles.push({ talle: data.talle, cantidad: 0 });
+        product.variants.push({ talle: data.talle || '', color: data.color || '', cantidad: 0 });
       }
-    }
-
-    await product.save({ session });
-
-    if (data.talle) {
-      const idx = product.talles.findIndex((t) => t.talle === data.talle);
-      product.talles[idx].cantidad += data.cantidad;
+      product.variants[idx === -1 ? product.variants.length - 1 : idx].cantidad += data.cantidad;
     }
 
     await product.save({ session });
 
     let pendiente = data.cantidad;
-    const sales = await Sale.find({ producto: data.producto }).sort({ createdAt: -1 }).session(session);
+    const sales = await Sale.find({
+      $or: [
+        { producto: data.producto },
+        { 'items.producto': data.producto },
+      ],
+    }).sort({ createdAt: -1 }).session(session);
 
     for (const sale of sales) {
       if (pendiente <= 0) break;
 
-      if (sale.cantidad <= pendiente) {
-        pendiente -= sale.cantidad;
-        await Sale.findByIdAndDelete(sale._id).session(session);
+      const match = sale.items?.find((i) => i.producto?.toString() === data.producto);
+      const saleCantidad = match?.cantidad ?? sale.cantidad ?? 0;
+
+      if (saleCantidad <= pendiente) {
+        pendiente -= saleCantidad;
+        if (sale.items && sale.items.length > 1) {
+          sale.items = sale.items.filter((i) => i.producto?.toString() !== data.producto);
+          const primerItem = sale.items[0];
+          sale.producto = primerItem.producto;
+          sale.cantidad = primerItem.cantidad;
+          sale.precio = primerItem.precio;
+          sale.talle = primerItem.talle || '';
+          sale.total = sale.items.reduce((s, i) => s + i.subtotal, 0);
+          await sale.save({ session });
+        } else {
+          await Sale.findByIdAndDelete(sale._id).session(session);
+        }
       } else {
-        sale.cantidad -= pendiente;
-        sale.total = sale.precio * sale.cantidad;
+        if (match) {
+          match.cantidad -= pendiente;
+          match.subtotal = match.precio * match.cantidad;
+        }
+        sale.total = sale.items ? sale.items.reduce((s, i) => s + (i.subtotal ?? i.precio * i.cantidad), 0) : (sale.cantidad - pendiente) * (sale.precio ?? 0);
         await sale.save({ session });
         pendiente = 0;
       }
@@ -81,11 +96,11 @@ export const deleteReturn = async (req, res, next) => {
 
     const product = await Product.findById(returnRecord.producto).session(session);
     if (product) {
-      if (returnRecord.talle) {
-        const idx = product.talles.findIndex((t) => t.talle === returnRecord.talle);
+      if (product.variants?.length > 0) {
+        const idx = findVariantIdx(product, returnRecord.talle, returnRecord.color);
         if (idx !== -1) {
-          product.talles[idx].cantidad -= returnRecord.cantidad;
-          if (product.talles[idx].cantidad < 0) product.talles[idx].cantidad = 0;
+          product.variants[idx].cantidad -= returnRecord.cantidad;
+          if (product.variants[idx].cantidad < 0) product.variants[idx].cantidad = 0;
         }
       }
       await product.save({ session });

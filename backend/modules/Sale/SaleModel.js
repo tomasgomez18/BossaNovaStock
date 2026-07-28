@@ -5,6 +5,7 @@ const itemSchema = new mongoose.Schema({
   cantidad: { type: Number, required: true, min: 1 },
   precio: { type: Number, required: true, min: 0 },
   talle: { type: String, default: '' },
+  color: { type: String, default: '' },
   subtotal: { type: Number, required: true, min: 0 },
 }, { _id: false });
 

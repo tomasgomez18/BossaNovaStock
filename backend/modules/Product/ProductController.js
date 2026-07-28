@@ -6,6 +6,14 @@ import { createProductSchema, updateProductSchema, sellProductSchema, exchangeSc
 
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const findVariant = (product, talle, color) => {
+  return product.variants.find((v) => v.talle === (talle || '') && v.color === (color || ''));
+};
+
+const findVariantIdx = (product, talle, color) => {
+  return product.variants.findIndex((v) => v.talle === (talle || '') && v.color === (color || ''));
+};
+
 export const getProducts = async (req, res, next) => {
   try {
     const { search, categoria } = req.query;
@@ -46,6 +54,12 @@ export const getProduct = async (req, res, next) => {
 export const createProduct = async (req, res, next) => {
   try {
     const data = createProductSchema.parse(req.body);
+
+    const existing = await Product.findOne({ nombre: { $regex: `^${escapeRegex(data.nombre)}$`, $options: 'i' } });
+    if (existing) {
+      return res.status(409).json({ message: `Ya existe un producto llamado "${data.nombre}"` });
+    }
+
     const product = await Product.create(data);
     res.status(201).json(product);
   } catch (error) {
@@ -56,14 +70,15 @@ export const createProduct = async (req, res, next) => {
 export const updateProduct = async (req, res, next) => {
   try {
     const data = updateProductSchema.parse(req.body);
-    const product = await Product.findByIdAndUpdate(req.params.id, data, {
-      new: true,
-      runValidators: true,
-    });
+    const product = await Product.findById(req.params.id);
 
     if (!product) {
       return res.status(404).json({ message: 'Producto no encontrado' });
     }
+
+    Object.assign(product, data);
+    await product.save();
+
     res.json(product);
   } catch (error) {
     next(error);
@@ -72,28 +87,25 @@ export const updateProduct = async (req, res, next) => {
 
 export const sellProduct = async (req, res, next) => {
   try {
-    const { cantidad, talle } = sellProductSchema.parse(req.body);
+    const { cantidad, talle, color } = sellProductSchema.parse(req.body);
 
     const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ message: 'Producto no encontrado' });
     }
 
-    if (product.talles?.length > 0 && !talle) {
-      return res.status(400).json({ message: 'Debe seleccionar un talle' });
-    }
-
-    if (talle) {
-      const idx = product.talles.findIndex((t) => t.talle === talle);
-      if (idx === -1) {
-        return res.status(400).json({ message: `Talle "${talle}" no encontrado` });
+    if (product.variants?.length > 0) {
+      const variant = findVariant(product, talle, color);
+      if (!variant) {
+        const label = [talle, color].filter(Boolean).join(' / ') || 'sin variante';
+        return res.status(400).json({ message: `Variante "${label}" no encontrada` });
       }
-      if (product.talles[idx].cantidad < cantidad) {
+      if (variant.cantidad < cantidad) {
         return res.status(400).json({
-          message: `Stock insuficiente para talle "${talle}". Solo hay ${product.talles[idx].cantidad} unidad(es).`,
+          message: `Stock insuficiente para "${label}". Solo hay ${variant.cantidad} unidad(es).`,
         });
       }
-      product.talles[idx].cantidad -= cantidad;
+      variant.cantidad -= cantidad;
     } else {
       if (product.cantidad < cantidad) {
         return res.status(400).json({
@@ -112,23 +124,19 @@ export const sellProduct = async (req, res, next) => {
 
 export const addStock = async (req, res, next) => {
   try {
-    const { cantidad, talle } = addStockSchema.parse(req.body);
+    const { cantidad, talle, color } = addStockSchema.parse(req.body);
 
     const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ message: 'Producto no encontrado' });
     }
 
-    if (product.talles?.length > 0 && !talle) {
-      return res.status(400).json({ message: 'Debe seleccionar un talle' });
-    }
-
-    if (talle) {
-      const idx = product.talles.findIndex((t) => t.talle === talle);
+    if (product.variants?.length > 0) {
+      const idx = findVariantIdx(product, talle, color);
       if (idx === -1) {
-        product.talles.push({ talle, cantidad });
+        product.variants.push({ talle: talle || '', color: color || '', cantidad });
       } else {
-        product.talles[idx].cantidad += cantidad;
+        product.variants[idx].cantidad += cantidad;
       }
     }
 
@@ -158,50 +166,47 @@ export const exchangeProduct = async (req, res, next) => {
       return res.status(404).json({ message: 'Producto a cargar no encontrado' });
     }
 
-    if (productoDevuelto.talles?.length > 0 && !data.talleDevolver) {
-      await session.abortTransaction();
-      return res.status(400).json({ message: `Debe seleccionar un talle del producto "${productoDevuelto.nombre}" a devolver` });
+    // Validate variants
+    if (productoDevuelto.variants?.length > 0) {
+      const devolverVariant = findVariant(productoDevuelto, data.talleDevolver, data.colorDevolver);
+      if (!devolverVariant) {
+        await session.abortTransaction();
+        return res.status(400).json({ message: `Variante no encontrada en "${productoDevuelto.nombre}" a devolver` });
+      }
     }
 
-    if (productoCargado.talles?.length > 0 && !data.talleCargar) {
-      await session.abortTransaction();
-      return res.status(400).json({ message: `Debe seleccionar un talle del producto "${productoCargado.nombre}" a cargar` });
-    }
-
-    if (data.talleCargar) {
-      const idx = productoCargado.talles.findIndex((t) => t.talle === data.talleCargar);
-      const disponible = idx !== -1 ? productoCargado.talles[idx].cantidad : 0;
-      if (disponible < data.cantidadCargar) {
+    if (productoCargado.variants?.length > 0) {
+      const cargarVariant = findVariant(productoCargado, data.talleCargar, data.colorCargar);
+      if (!cargarVariant) {
+        await session.abortTransaction();
+        return res.status(400).json({ message: `Variante no encontrada en "${productoCargado.nombre}" a cargar` });
+      }
+      if (cargarVariant.cantidad < data.cantidadCargar) {
         await session.abortTransaction();
         return res.status(400).json({
-          message: `Stock insuficiente de "${productoCargado.nombre}" talle "${data.talleCargar}". Solo hay ${disponible} unidad(es).`,
+          message: `Stock insuficiente de "${productoCargado.nombre}". Solo hay ${cargarVariant.cantidad} unidad(es).`,
         });
       }
     }
 
-    if (data.talleDevolver) {
-      const idx = productoDevuelto.talles.findIndex((t) => t.talle === data.talleDevolver);
+    // Add stock back to returned product
+    if (productoDevuelto.variants?.length > 0) {
+      const idx = findVariantIdx(productoDevuelto, data.talleDevolver, data.colorDevolver);
       if (idx === -1) {
-        productoDevuelto.talles.push({ talle: data.talleDevolver, cantidad: 0 });
+        productoDevuelto.variants.push({ talle: data.talleDevolver || '', color: data.colorDevolver || '', cantidad: 0 });
       }
-    }
-    if (data.talleCargar) {
-      const idx = productoCargado.talles.findIndex((t) => t.talle === data.talleCargar);
-      if (idx === -1) {
-        productoCargado.talles.push({ talle: data.talleCargar, cantidad: 0 });
-      }
+      const targetIdx = idx === -1 ? productoDevuelto.variants.length - 1 : idx;
+      productoDevuelto.variants[targetIdx].cantidad += data.cantidadDevolver;
     }
 
-    productoDevuelto.cantidad += data.cantidadDevolver;
-    productoCargado.cantidad -= data.cantidadCargar;
-
-    if (data.talleDevolver) {
-      const idx = productoDevuelto.talles.findIndex((t) => t.talle === data.talleDevolver);
-      productoDevuelto.talles[idx].cantidad += data.cantidadDevolver;
-    }
-    if (data.talleCargar) {
-      const idx = productoCargado.talles.findIndex((t) => t.talle === data.talleCargar);
-      productoCargado.talles[idx].cantidad -= data.cantidadCargar;
+    // Deduct stock from new product
+    if (productoCargado.variants?.length > 0) {
+      const idx = findVariantIdx(productoCargado, data.talleCargar, data.colorCargar);
+      if (idx === -1) {
+        productoCargado.variants.push({ talle: data.talleCargar || '', color: data.colorCargar || '', cantidad: 0 });
+      }
+      const targetIdx = idx === -1 ? productoCargado.variants.length - 1 : idx;
+      productoCargado.variants[targetIdx].cantidad -= data.cantidadCargar;
     }
 
     await productoDevuelto.save({ session });
@@ -211,21 +216,48 @@ export const exchangeProduct = async (req, res, next) => {
       producto: data.productoDevolver,
       cantidad: data.cantidadDevolver,
       talle: data.talleDevolver || '',
+      color: data.colorDevolver || '',
+      productoCargar: data.productoCargar,
+      cantidadCargar: data.cantidadCargar,
+      talleCargar: data.talleCargar || '',
+      colorCargar: data.colorCargar || '',
       motivo: data.motivo || `Cambio por ${productoCargado.nombre}`,
     }], { session });
 
     let pendiente = data.cantidadDevolver;
-    const sales = await Sale.find({ producto: data.productoDevolver }).sort({ createdAt: -1 }).session(session);
+    const sales = await Sale.find({
+      $or: [
+        { producto: data.productoDevolver },
+        { 'items.producto': data.productoDevolver },
+      ],
+    }).sort({ createdAt: -1 }).session(session);
 
     for (const sale of sales) {
       if (pendiente <= 0) break;
 
-      if (sale.cantidad <= pendiente) {
-        pendiente -= sale.cantidad;
-        await Sale.findByIdAndDelete(sale._id).session(session);
+      const match = sale.items?.find((i) => i.producto?.toString() === data.productoDevolver);
+      const saleCantidad = match?.cantidad ?? sale.cantidad ?? 0;
+
+      if (saleCantidad <= pendiente) {
+        pendiente -= saleCantidad;
+        if (sale.items && sale.items.length > 1) {
+          sale.items = sale.items.filter((i) => i.producto?.toString() !== data.productoDevolver);
+          const primerItem = sale.items[0];
+          sale.producto = primerItem.producto;
+          sale.cantidad = primerItem.cantidad;
+          sale.precio = primerItem.precio;
+          sale.talle = primerItem.talle || '';
+          sale.total = sale.items.reduce((s, i) => s + i.subtotal, 0);
+          await sale.save({ session });
+        } else {
+          await Sale.findByIdAndDelete(sale._id).session(session);
+        }
       } else {
-        sale.cantidad -= pendiente;
-        sale.total = sale.precio * sale.cantidad;
+        if (match) {
+          match.cantidad -= pendiente;
+          match.subtotal = match.precio * match.cantidad;
+        }
+        sale.total = sale.items ? sale.items.reduce((s, i) => s + (i.subtotal ?? i.precio * i.cantidad), 0) : (sale.cantidad - pendiente) * (sale.precio ?? 0);
         await sale.save({ session });
         pendiente = 0;
       }
@@ -273,6 +305,72 @@ export const getDashboardStats = async (req, res, next) => {
       totalProveedores,
       totalDevoluciones,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const migrateVariants = async (req, res, next) => {
+  try {
+    const products = await Product.find({
+      $or: [
+        { talles: { $exists: true, $ne: [] } },
+        { colores: { $exists: true, $ne: [] } },
+      ],
+    });
+
+    let count = 0;
+    for (const product of products) {
+      const variants = [];
+
+      // Convert talles to variants
+      if (product.talles?.length > 0) {
+        for (const t of product.talles) {
+          variants.push({ talle: t.talle, color: '', cantidad: t.cantidad });
+        }
+      }
+
+      // Convert colores to variants (only if no talles existed)
+      if (!product.talles?.length && product.colores?.length > 0) {
+        for (const c of product.colores) {
+          variants.push({ talle: '', color: c.color, cantidad: c.cantidad });
+        }
+      }
+
+      product.variants = variants;
+      product.talles = undefined;
+      product.colores = undefined;
+      await product.save();
+      count++;
+    }
+
+    res.json({ message: `Migrados ${count} productos al formato variants` });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getLowStock = async (req, res, next) => {
+  try {
+    const products = await Product.find({ variants: { $exists: true, $ne: [] } });
+
+    const lowStock = [];
+    for (const product of products) {
+      for (const v of product.variants) {
+        if (v.cantidad <= product.stockMinimo) {
+          lowStock.push({
+            productoId: product._id,
+            productoNombre: product.nombre,
+            talle: v.talle,
+            color: v.color,
+            cantidad: v.cantidad,
+            stockMinimo: product.stockMinimo,
+          });
+        }
+      }
+    }
+
+    res.json(lowStock.sort((a, b) => a.cantidad - b.cantidad));
   } catch (error) {
     next(error);
   }

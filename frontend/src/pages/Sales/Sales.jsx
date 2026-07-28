@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import Swal from 'sweetalert2';
-import { getSales, getSalesStats, getMostSold, salesLogin, deleteSale, getDailyClose, getDailyCloses } from '../../api/sales';
+import { getSales, getSalesStats, getMostSold, salesLogin, deleteSale, getDailyClose, getDailyCloses, deleteDailyClose } from '../../api/sales';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const today = () => {
@@ -115,10 +115,11 @@ const Sales = () => {
     }
     setLoading(true);
     setFetchError('');
+    const tz = new Date().getTimezoneOffset();
     Promise.all([
-      getSales({ desde, hasta }),
-      getSalesStats({ desde, hasta }),
-      getMostSold({ desde, hasta }),
+      getSales({ desde, hasta, offset: tz }),
+      getSalesStats({ desde, hasta, offset: tz }),
+      getMostSold({ desde, hasta, offset: tz }),
     ])
       .then(([salesRes, statsRes, mostSoldRes]) => {
         setData(salesRes.data);
@@ -141,7 +142,7 @@ const Sales = () => {
       return;
     }
     setClosesLoading(true);
-    getDailyCloses({ desde: cDesde, hasta: cHasta })
+    getDailyCloses({ desde: cDesde, hasta: cHasta, offset: new Date().getTimezoneOffset() })
       .then((res) => setCloses(res.data))
       .catch((err) => {
         if (!localStorage.getItem('salesToken')) setAuthed(false);
@@ -278,6 +279,28 @@ const Sales = () => {
       fetchData();
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al eliminar venta', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+    }
+  };
+
+  const handleDeleteClose = async (id) => {
+    const confirmed = await Swal.fire({
+      icon: 'question',
+      title: '¿Eliminar este cierre?',
+      text: 'El cierre se eliminará permanentemente',
+      showCancelButton: true,
+      confirmButtonText: 'Eliminar',
+      cancelButtonText: 'Cancelar',
+      background: '#171717',
+      color: '#fff',
+      confirmButtonColor: '#ef4444',
+    });
+    if (!confirmed.isConfirmed) return;
+    try {
+      await deleteDailyClose(id);
+      Swal.fire({ icon: 'success', title: 'Cierre eliminado', timer: 1500, showConfirmButton: false, background: '#171717', color: '#fff' });
+      fetchCloses();
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al eliminar cierre', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
     }
   };
 
@@ -698,12 +721,18 @@ const Sales = () => {
                           <span className="text-white/30 text-xs ml-1">({c.tarjeta?.cantidad || 0})</span>
                         </td>
                         <td className="px-4 py-3 text-white/30 text-xs">{new Date(c.cerradoAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
                           <button
                             onClick={() => viewCloseDetail(c)}
                             className="text-blue-400 hover:text-blue-300 text-xs border border-blue-500/30 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-all"
                           >
                             Ver
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClose(c._id)}
+                            className="text-red-400 hover:text-red-300 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
+                          >
+                            Eliminar
                           </button>
                         </td>
                       </tr>

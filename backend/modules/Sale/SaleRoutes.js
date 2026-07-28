@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createSale, deleteSale, getSales, getSalesStats, getMostSold, getDailyClose, getDailyCloses, runMigration } from './SaleController.js';
+import { createSale, deleteSale, getSales, getSalesStats, getMostSold, getDailyClose, getDailyCloses, deleteDailyClose, runMigration } from './SaleController.js';
 import { protect } from '../../middlewares/AuthMiddleware.js';
 import { protectSales } from '../../middlewares/SalesAuthMiddleware.js';
 
@@ -9,6 +9,7 @@ router.use(protect);
 
 router.get('/daily-close', protectSales, getDailyClose);
 router.get('/daily-closes', protectSales, getDailyCloses);
+router.delete('/daily-closes/:id', protectSales, deleteDailyClose);
 router.get('/stats', protectSales, getSalesStats);
 router.get('/most-sold', protectSales, getMostSold);
 router.get('/', protectSales, getSales);

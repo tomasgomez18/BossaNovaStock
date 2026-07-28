@@ -10,6 +10,7 @@ const itemSchema = z.object({
   cantidad: z.number().int().positive('Debe vender al menos 1'),
   precio: z.number().min(0, 'Precio debe ser mayor o igual a 0'),
   talle: z.string().optional().default(''),
+  color: z.string().optional().default(''),
 });
 
 export const createSaleSchema = z.object({
