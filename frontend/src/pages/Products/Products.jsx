@@ -7,6 +7,7 @@ import {
   deleteProduct,
   exchangeProduct,
   addStock,
+  getLowStock,
 } from '../../api/products';
 import { createReturn } from '../../api/returns';
 import { createSale } from '../../api/sales';
@@ -26,6 +27,24 @@ const variantShortLabel = (v) => {
   if (v.talle) parts.push(v.talle);
   if (v.color) parts.push(v.color);
   return parts.join(' / ') || '—';
+};
+
+const getDropdownPosition = (el) => {
+  const rect = el.getBoundingClientRect();
+  const W = 160;
+  const H = 220;
+  const GAP = 28;
+  let x = rect.left;
+  let y = rect.bottom + GAP;
+  if (y + H > window.innerHeight) {
+    y = rect.top - GAP - H;
+  }
+  if (y < 0) y = GAP;
+  if (x + W > window.innerWidth) {
+    x = rect.right - W;
+  }
+  if (x < 0) x = GAP;
+  return { x, y };
 };
 
 const Products = () => {
@@ -67,6 +86,12 @@ const Products = () => {
   const [addStockCantidad, setAddStockCantidad] = useState('1');
   const [addStockVariantIdx, setAddStockVariantIdx] = useState('');
 
+  const [lowStock, setLowStock] = useState([]);
+  const [lowStockOpen, setLowStockOpen] = useState(false);
+
+  const agotados = lowStock.filter((i) => i.cantidad === 0);
+  const bajos = lowStock.filter((i) => i.cantidad > 0);
+
   const cartTotal = cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
   const descuentoNum = sellDescuento === '' ? 0 : Number(sellDescuento);
   const finalTotal = cartTotal * (1 - descuentoNum / 100);
@@ -89,6 +114,12 @@ const Products = () => {
   useEffect(() => {
     fetchData();
   }, [search]);
+
+  useEffect(() => {
+    getLowStock()
+      .then((res) => setLowStock(res.data))
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (data) => {
     setIsSubmitting(true);
@@ -349,7 +380,7 @@ const Products = () => {
         </div>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-4 flex items-center gap-3 flex-wrap">
         <input
           type="text"
           placeholder="Buscar por nombre o categoria..."
@@ -357,6 +388,51 @@ const Products = () => {
           onChange={(e) => setSearch(e.target.value)}
           className="w-full md:w-96 px-4 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.10] transition-all text-sm"
         />
+        {lowStock.length > 0 && (
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setLowStockOpen(!lowStockOpen)}
+              className="flex items-center gap-2 px-3 py-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400 hover:bg-red-500/20 transition-all"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <span className="text-xs font-medium whitespace-nowrap">
+                {bajos.length > 0 && `${bajos.length} bajo`}
+                {bajos.length > 0 && agotados.length > 0 && ' · '}
+                {agotados.length > 0 && `${agotados.length} agotado${agotados.length > 1 ? 's' : ''}`}
+              </span>
+            </button>
+            {lowStockOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setLowStockOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 z-40 w-72 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 py-2 animate-fadeIn max-h-64 overflow-y-auto">
+                  {bajos.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 px-4 py-1.5 text-xs text-red-300/80">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-400/50 shrink-0" />
+                      <span className="font-medium truncate">{item.productoNombre}</span>
+                      {item.talle && <span className="shrink-0">· {item.talle}</span>}
+                      {item.color && <span className="shrink-0">· {item.color}</span>}
+                      <span className="ml-auto shrink-0 text-red-400/60">{item.cantidad} uds.</span>
+                    </div>
+                  ))}
+                  {bajos.length > 0 && agotados.length > 0 && (
+                    <div className="h-px bg-red-500/10 my-1 mx-3" />
+                  )}
+                  {agotados.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 px-4 py-1.5 text-xs text-red-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                      <span className="font-medium truncate">{item.productoNombre}</span>
+                      {item.talle && <span className="shrink-0">· {item.talle}</span>}
+                      {item.color && <span className="shrink-0">· {item.color}</span>}
+                      <span className="ml-auto shrink-0 font-semibold">AGOTADO</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {showForm && (
@@ -853,12 +929,11 @@ const Products = () => {
                     <td className="px-4 py-3">
                       <button
                         onClick={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setDropdown(
-                            dropdown.product?._id === p._id
-                              ? { product: null, x: 0, y: 0 }
-                              : { product: p, x: rect.right - 160, y: rect.bottom + 4 }
-                          );
+                          if (dropdown.product?._id === p._id) {
+                            setDropdown({ product: null, x: 0, y: 0 });
+                          } else {
+                            setDropdown({ product: p, ...getDropdownPosition(e.currentTarget) });
+                          }
                         }}
                         className="p-2 rounded-lg hover:bg-white/10 text-white/40 transition-colors"
                       >
@@ -879,7 +954,7 @@ const Products = () => {
         <>
           <div className="fixed inset-0 z-30" onClick={() => setDropdown({ product: null, x: 0, y: 0 })} />
           <div
-            className="fixed z-40 w-40 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 py-1.5"
+            className="fixed z-40 w-40 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 py-1.5 animate-fadeIn"
             style={{ left: dropdown.x, top: dropdown.y }}
           >
             <button
