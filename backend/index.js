@@ -12,7 +12,7 @@ import AuthRoutes from './modules/Auth/AuthRoutes.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const requiredEnv = ['MONGO_URI', 'JWT_SECRET', 'ALLOWED_ORIGINS', 'ADMIN_EMAIL', 'ADMIN_PASSWORD'];
+const requiredEnv = ['MONGO_URI', 'JWT_SECRET', 'ALLOWED_ORIGINS', 'ADMIN_EMAIL', 'ADMIN_PASSWORD', 'EMPLEADO_EMAIL', 'EMPLEADO_PASSWORD'];
 for (const env of requiredEnv) {
   if (!process.env[env]) {
     console.error(`FATAL: Missing required environment variable ${env}`);
@@ -23,7 +23,6 @@ import SupplierRoutes from './modules/Supplier/SupplierRoutes.js';
 import ProductRoutes from './modules/Product/ProductRoutes.js';
 import ReturnRoutes from './modules/Return/ReturnRoutes.js';
 import SaleRoutes from './modules/Sale/SaleRoutes.js';
-import SalesAuthRoutes from './modules/SalesAuth/SalesAuthRoutes.js';
 import User from './modules/Auth/AuthModel.js';
 
 const app = express();
@@ -55,7 +54,6 @@ app.use('/api/auth', authLimiter, AuthRoutes);
 app.use('/api/suppliers', SupplierRoutes);
 app.use('/api/products', ProductRoutes);
 app.use('/api/returns', ReturnRoutes);
-app.use('/api/sales-auth', authLimiter, SalesAuthRoutes);
 app.use('/api/sales', SaleRoutes);
 
 app.use('/api/*', (req, res) => {
@@ -72,27 +70,44 @@ if (!isDev) {
 
 app.use(errorHandler);
 
-const seedAdmin = async () => {
+const seedUsers = async () => {
   try {
-    const existing = await User.findOne({ email: process.env.ADMIN_EMAIL });
-      if (!existing) {
-        await User.create({
-          nombre: 'Admin',
-          email: process.env.ADMIN_EMAIL,
-          password: process.env.ADMIN_PASSWORD,
-          rol: 'admin',
-        });
-        if (isDev) console.log('Usuario admin creado automáticamente');
-      } else {
-        if (isDev) console.log('El usuario admin ya existe');
-      }
+    const adminUser = await User.findOne({ email: process.env.ADMIN_EMAIL });
+    if (!adminUser) {
+      await User.create({
+        nombre: 'Admin',
+        email: process.env.ADMIN_EMAIL,
+        password: process.env.ADMIN_PASSWORD,
+        rol: 'admin',
+      });
+      if (isDev) console.log('Usuario admin creado');
+    } else {
+      adminUser.password = process.env.ADMIN_PASSWORD;
+      await adminUser.save();
+      if (isDev) console.log('Contraseña de admin actualizada');
+    }
+
+    const empleadoUser = await User.findOne({ email: process.env.EMPLEADO_EMAIL });
+    if (!empleadoUser) {
+      await User.create({
+        nombre: 'Empleado',
+        email: process.env.EMPLEADO_EMAIL,
+        password: process.env.EMPLEADO_PASSWORD,
+        rol: 'user',
+      });
+      if (isDev) console.log('Usuario empleado creado');
+    } else {
+      empleadoUser.password = process.env.EMPLEADO_PASSWORD;
+      await empleadoUser.save();
+      if (isDev) console.log('Contraseña de empleado actualizada');
+    }
   } catch (error) {
-    console.error('Error al crear usuario admin:', error.message);
+    console.error('Error al crear usuarios:', error.message);
   }
 };
 
 connectDB().then(async () => {
-  await seedAdmin();
+  await seedUsers();
   app.listen(PORT, () => {
     if (isDev) console.log(`Servidor corriendo en puerto ${PORT}`);
   });

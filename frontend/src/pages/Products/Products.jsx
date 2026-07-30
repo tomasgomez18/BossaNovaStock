@@ -13,6 +13,7 @@ import { createReturn } from '../../api/returns';
 import { createSale } from '../../api/sales';
 import ProductForm from '../../components/ProductForm/ProductForm';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { useAuth } from '../../context/AuthContext';
 
 const variantLabel = (v) => {
   const parts = [];
@@ -86,8 +87,12 @@ const Products = () => {
   const [addStockCantidad, setAddStockCantidad] = useState('1');
   const [addStockVariantIdx, setAddStockVariantIdx] = useState('');
 
+  const { user } = useAuth();
+
   const [lowStock, setLowStock] = useState([]);
   const [lowStockOpen, setLowStockOpen] = useState(false);
+
+  const [expandedId, setExpandedId] = useState(null);
 
   const agotados = lowStock.filter((i) => i.cantidad === 0);
   const bajos = lowStock.filter((i) => i.cantidad > 0);
@@ -371,12 +376,14 @@ const Products = () => {
               </span>
             )}
           </button>
-          <button
-            onClick={openCreate}
-            className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-4 py-2 rounded-lg transition-all text-sm"
-          >
-            + Nuevo Producto
-          </button>
+          {user?.rol === 'admin' && (
+            <button
+              onClick={openCreate}
+              className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-4 py-2 rounded-lg transition-all text-sm"
+            >
+              + Nuevo Producto
+            </button>
+          )}
         </div>
       </div>
 
@@ -882,34 +889,64 @@ const Products = () => {
                 </tr>
               ) : (
                 products.map((p) => (
-                  <tr key={p._id} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <tr key={p._id} className="border-t border-white/5 even:bg-white/[0.03] hover:bg-white/[0.05] transition-colors">
                     <td className="px-4 py-3 font-medium text-white">{p.nombre}</td>
-                    <td className="px-4 py-3">
-                      <div className="text-xs leading-relaxed space-y-0.5">
-                        {p.colores?.length > 0
-                          ? p.colores.map((color) => {
-                              const vars = p.variants.filter((v) => v.color === color);
-                              return (
-                                <div key={color}>
-                                  <span className="font-semibold text-white/80">{color}: </span>
-                                  {vars.length > 0
-                                    ? vars.map((v, i) => (
-                                        <span key={i} className="text-white/50">
-                                          {v.talle}({v.cantidad}){i < vars.length - 1 ? ' · ' : ''}
-                                        </span>
-                                      ))
-                                    : <span className="text-white/30">—</span>}
-                                </div>
-                              );
-                            })
-                          : p.variants?.length > 0
-                            ? p.variants.map((v, i) => (
-                                <span key={i} className="text-white/50">
-                                  {variantShortLabel(v)}:{v.cantidad}{i < p.variants.length - 1 ? ', ' : ''}
-                                </span>
-                              ))
-                            : <span className="text-white/30">—</span>}
-                      </div>
+                    <td
+                      className="px-4 py-3 cursor-pointer"
+                      onClick={() => setExpandedId(expandedId === p._id ? null : p._id)}
+                    >
+                      {expandedId === p._id ? (
+                        <div className="text-xs leading-relaxed space-y-0.5">
+                          {p.colores?.length > 0
+                            ? p.colores.map((color) => {
+                                const vars = p.variants.filter((v) => v.color === color);
+                                return (
+                                  <div key={color}>
+                                    <span className="font-semibold text-white/80">{color}: </span>
+                                    {vars.length > 0
+                                      ? vars.map((v, i) => (
+                                          <span key={i} className="text-white/50">
+                                            {v.talle}({v.cantidad}){i < vars.length - 1 ? ' · ' : ''}
+                                          </span>
+                                        ))
+                                      : <span className="text-white/30">—</span>}
+                                  </div>
+                                );
+                              })
+                            : p.variants?.length > 0
+                              ? p.variants.map((v, i) => (
+                                  <span key={i} className="text-white/50">
+                                    {variantShortLabel(v)}:{v.cantidad}{i < p.variants.length - 1 ? ', ' : ''}
+                                  </span>
+                                ))
+                              : <span className="text-white/30">—</span>}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-xs">
+                          <svg className={`w-3 h-3 text-white/30 transition-transform ${expandedId === p._id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                          {p.colores?.length > 0 ? (
+                            <span className="text-white/50">
+                              {p.colores.slice(0, 3).map((c, i) => {
+                                const count = p.variants.filter((v) => v.color === c).length;
+                                return (
+                                  <span key={c}>
+                                    {i > 0 && <span className="text-white/20"> · </span>}
+                                    <span className="text-white/60">{c}</span>
+                                    <span className="text-white/30">(+{count})</span>
+                                  </span>
+                                );
+                              })}
+                              {p.colores.length > 3 && <span className="text-white/20 ml-1">· +{p.colores.length - 3} más</span>}
+                            </span>
+                          ) : p.variants?.length > 0 ? (
+                            <span className="text-white/50">{p.variants.length} variantes</span>
+                          ) : (
+                            <span className="text-white/30">—</span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-white/70">
                       {p.precio != null ? `$${Number(p.precio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '—'}
@@ -963,30 +1000,36 @@ const Products = () => {
             >
               Agregar al carrito
             </button>
-            <button
-              onClick={() => { openAddStock(dropdown.product); setDropdown({ product: null, x: 0, y: 0 }); }}
-              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-cyan-400 hover:bg-white/5 transition-colors"
-            >
-               Agregar Stock
-            </button>
+            {user?.rol === 'admin' && (
+              <button
+                onClick={() => { openAddStock(dropdown.product); setDropdown({ product: null, x: 0, y: 0 }); }}
+                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-cyan-400 hover:bg-white/5 transition-colors"
+              >
+                 Agregar Stock
+              </button>
+            )}
             <button
               onClick={() => { openReturn(dropdown.product); setDropdown({ product: null, x: 0, y: 0 }); }}
               className="flex items-center gap-2 w-full px-4 py-2 text-sm text-orange-400 hover:bg-white/5 transition-colors"
             >
               Cambio
             </button>
-            <button
-              onClick={() => { handleEdit(dropdown.product); setDropdown({ product: null, x: 0, y: 0 }); }}
-              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-blue-400 hover:bg-white/5 transition-colors"
-            >
-               Editar
-            </button>
-            <button
-              onClick={() => { handleDelete(dropdown.product._id); setDropdown({ product: null, x: 0, y: 0 }); }}
-              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-400 hover:bg-white/5 transition-colors"
-            >
-               Eliminar
-            </button>
+            {user?.rol === 'admin' && (
+              <button
+                onClick={() => { handleEdit(dropdown.product); setDropdown({ product: null, x: 0, y: 0 }); }}
+                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-blue-400 hover:bg-white/5 transition-colors"
+              >
+                 Editar
+              </button>
+            )}
+            {user?.rol === 'admin' && (
+              <button
+                onClick={() => { handleDelete(dropdown.product._id); setDropdown({ product: null, x: 0, y: 0 }); }}
+                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-400 hover:bg-white/5 transition-colors"
+              >
+                 Eliminar
+              </button>
+            )}
           </div>
         </>
       )}

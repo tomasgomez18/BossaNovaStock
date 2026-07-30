@@ -6,16 +6,16 @@ import {
   updateSupplier,
   deleteSupplier,
 } from './SupplierController.js';
-import { protect } from '../../middlewares/AuthMiddleware.js';
+import { protect, admin } from '../../middlewares/AuthMiddleware.js';
 
 const router = Router();
 
 router.use(protect);
 
-router.get('/', getSuppliers);
-router.get('/:id', getSupplier);
-router.post('/', createSupplier);
-router.put('/:id', updateSupplier);
-router.delete('/:id', deleteSupplier);
+router.get('/', admin, getSuppliers);
+router.get('/:id', admin, getSupplier);
+router.post('/', admin, createSupplier);
+router.put('/:id', admin, updateSupplier);
+router.delete('/:id', admin, deleteSupplier);
 
 export default router;

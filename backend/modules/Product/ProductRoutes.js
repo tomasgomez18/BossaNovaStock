@@ -12,7 +12,7 @@ import {
   migrateVariants,
   getLowStock,
 } from './ProductController.js';
-import { protect } from '../../middlewares/AuthMiddleware.js';
+import { protect, admin } from '../../middlewares/AuthMiddleware.js';
 
 const router = Router();
 
@@ -22,12 +22,12 @@ router.get('/stats', getDashboardStats);
 router.get('/low-stock', getLowStock);
 router.get('/', getProducts);
 router.get('/:id', getProduct);
-router.post('/', createProduct);
-router.put('/:id', updateProduct);
+router.post('/', admin, createProduct);
+router.put('/:id', admin, updateProduct);
 router.put('/:id/sell', sellProduct);
-router.put('/:id/add-stock', addStock);
+router.put('/:id/add-stock', admin, addStock);
 router.post('/exchange', exchangeProduct);
-router.delete('/:id', deleteProduct);
-router.post('/migrate-variants', migrateVariants);
+router.delete('/:id', admin, deleteProduct);
+router.post('/migrate-variants', admin, migrateVariants);
 
 export default router;

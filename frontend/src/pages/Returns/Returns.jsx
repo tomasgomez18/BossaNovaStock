@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { getReturns, deleteReturn } from '../../api/returns';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { useAuth } from '../../context/AuthContext';
 
 const Returns = () => {
+  const { user } = useAuth();
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -95,12 +97,14 @@ const Returns = () => {
                   <td className="px-4 py-3 text-white/50">{r.motivo}</td>
                   <td className="px-4 py-3 text-white/30 text-xs">{formatDate(r.createdAt)}</td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleDelete(r._id)}
-                      className="text-red-400 hover:text-red-300 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
-                    >
-                      Eliminar
-                    </button>
+                    {user?.rol === 'admin' && (
+                      <button
+                        onClick={() => handleDelete(r._id)}
+                        className="text-red-400 hover:text-red-300 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))

@@ -1,7 +1,8 @@
 import { useState, useEffect, Fragment } from 'react';
 import Swal from 'sweetalert2';
-import { getSales, getSalesStats, getMostSold, salesLogin, deleteSale, getDailyClose, getDailyCloses, deleteDailyClose } from '../../api/sales';
+import { getSales, getSalesStats, getMostSold, deleteSale, getDailyClose, getDailyCloses, deleteDailyClose } from '../../api/sales';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { useAuth } from '../../context/AuthContext';
 
 const today = () => {
   const d = new Date();
@@ -63,11 +64,7 @@ const getItems = (s) =>
   (s.items && s.items.length > 0 ? s.items : [{ producto: s.producto, cantidad: s.cantidad, precio: s.precio, talle: s.talle }]);
 
 const Sales = () => {
-  const [authed, setAuthed] = useState(!!localStorage.getItem('salesToken'));
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [loginLoading, setLoginLoading] = useState(false);
+  const { user } = useAuth();
 
   const [desde, setDesde] = useState(today);
   const [hasta, setHasta] = useState(today);
@@ -88,31 +85,7 @@ const Sales = () => {
 
   const [expandedId, setExpandedId] = useState(null);
 
-  const handleSalesLogin = async (e) => {
-    e.preventDefault();
-    setLoginError('');
-    setLoginLoading(true);
-    try {
-      const res = await salesLogin({ email: loginEmail, password: loginPassword });
-      localStorage.setItem('salesToken', res.data.token);
-      setAuthed(true);
-    } catch (err) {
-      setLoginError(err.response?.data?.message || 'Error al iniciar sesion');
-    } finally {
-      setLoginLoading(false);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('salesToken');
-    setAuthed(false);
-  };
-
   const fetchData = () => {
-    if (!localStorage.getItem('salesToken')) {
-      setAuthed(false);
-      return;
-    }
     setLoading(true);
     setFetchError('');
     const tz = new Date().getTimezoneOffset();
@@ -127,26 +100,16 @@ const Sales = () => {
         setMostSold(mostSoldRes.data);
       })
       .catch((err) => {
-        if (!localStorage.getItem('salesToken')) {
-          setAuthed(false);
-        } else {
-          setFetchError(err.response?.data?.message || 'Error al cargar ventas');
-        }
+        setFetchError(err.response?.data?.message || 'Error al cargar ventas');
       })
       .finally(() => setLoading(false));
   };
 
   const fetchCloses = () => {
-    if (!localStorage.getItem('salesToken')) {
-      setAuthed(false);
-      return;
-    }
     setClosesLoading(true);
     getDailyCloses({ desde: cDesde, hasta: cHasta, offset: new Date().getTimezoneOffset() })
       .then((res) => setCloses(res.data))
-      .catch((err) => {
-        if (!localStorage.getItem('salesToken')) setAuthed(false);
-      })
+      .catch(() => {})
       .finally(() => setClosesLoading(false));
   };
 
@@ -305,14 +268,12 @@ const Sales = () => {
   };
 
   useEffect(() => {
-    if (!authed) return;
     fetchData();
-  }, [desde, hasta, authed]);
+  }, [desde, hasta]);
 
   useEffect(() => {
-    if (!authed) return;
     fetchCloses();
-  }, [cDesde, cHasta, authed]);
+  }, [cDesde, cHasta]);
 
   const selectPeriodo = (p) => {
     setActivePeriodo(p.key);
@@ -327,44 +288,14 @@ const Sales = () => {
       year: 'numeric',
     });
 
-  if (!authed) {
+  if (user && user.rol !== 'admin') {
     return (
-      <div className="max-w-sm mx-auto mt-20">
-        <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-xl p-6">
-          <h1 className="text-xl font-bold text-white mb-2">Acceso a Ventas</h1>
-          <p className="text-sm text-white/50 mb-6">Ingrese las credenciales de ventas</p>
-          <form onSubmit={handleSalesLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Email</label>
-              <input
-                type="email"
-                required
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Contrasena</label>
-              <input
-                type="password"
-                required
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
-              />
-            </div>
-            {loginError && (
-              <p className="text-sm text-red-400">{loginError}</p>
-            )}
-            <button
-              type="submit"
-              disabled={loginLoading}
-              className="w-full py-2.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg text-sm hover:bg-green-500/30 disabled:opacity-50 transition-all"
-            >
-              {loginLoading ? 'Ingresando...' : 'Ingresar'}
-            </button>
-          </form>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <svg className="w-12 h-12 mx-auto text-white/20 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          <p className="text-white/40 text-sm">Solo el administrador puede acceder a Ventas</p>
         </div>
       </div>
     );
@@ -404,18 +335,14 @@ const Sales = () => {
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleDailyClose}
-            className="text-sm text-green-400 bg-green-500/10 border border-green-500/30 px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition-all"
-          >
-            Cierre de Caja
-          </button>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg hover:bg-red-500/10 transition-all"
-          >
-            Cerrar sesion
-          </button>
+          {user?.rol === 'admin' && (
+            <button
+              onClick={handleDailyClose}
+              className="text-sm text-green-400 bg-green-500/10 border border-green-500/30 px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition-all"
+            >
+              Cierre de Caja
+            </button>
+          )}
         </div>
       </div>
 
@@ -586,12 +513,14 @@ const Sales = () => {
                           </td>
                           <td className="px-4 py-3 text-white/30 text-xs">{formatDate(s.createdAt)}</td>
                           <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDelete(s._id); }}
-                              className="text-red-400 hover:text-red-300 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
-                            >
-                              Eliminar
-                            </button>
+                            {user?.rol === 'admin' && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDelete(s._id); }}
+                                className="text-red-400 hover:text-red-300 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
+                              >
+                                Eliminar
+                              </button>
+                            )}
                           </td>
                         </tr>
                         {isExpanded && (
@@ -728,12 +657,14 @@ const Sales = () => {
                           >
                             Ver
                           </button>
-                          <button
-                            onClick={() => handleDeleteClose(c._id)}
-                            className="text-red-400 hover:text-red-300 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
-                          >
-                            Eliminar
-                          </button>
+                          {user?.rol === 'admin' && (
+                            <button
+                              onClick={() => handleDeleteClose(c._id)}
+                              className="text-red-400 hover:text-red-300 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
+                            >
+                              Eliminar
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))
