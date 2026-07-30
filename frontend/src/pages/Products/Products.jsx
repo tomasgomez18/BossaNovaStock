@@ -443,8 +443,8 @@ const Products = () => {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
+          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-modalIn">
             <h2 className="text-xl font-bold text-white mb-4">
               {editing ? 'Editar Producto' : 'Nuevo Producto'}
             </h2>
@@ -462,8 +462,8 @@ const Products = () => {
       )}
 
       {quickAdd && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-sm mx-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
+          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-sm mx-4 animate-modalIn">
             <h2 className="text-lg font-bold text-white mb-1">Agregar al Carrito</h2>
             <p className="text-white/50 text-sm mb-4">{quickAdd.nombre}</p>
             <div className="space-y-4">
@@ -512,8 +512,8 @@ const Products = () => {
       )}
 
       {showCart && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-2xl mx-4 max-h-[95vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
+          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-2xl mx-4 max-h-[95vh] overflow-y-auto animate-modalIn">
             <h2 className="text-xl font-bold text-white mb-4">Carrito ({cart.length} productos)</h2>
 
             <div className="space-y-2 mb-4">
@@ -682,8 +682,8 @@ const Products = () => {
       )}
 
       {addStockModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-sm mx-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
+          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-sm mx-4 animate-modalIn">
             <h2 className="text-xl font-bold text-white mb-2">Agregar Stock</h2>
             <p className="text-white/50 text-sm mb-4">
               <span className="text-white font-semibold">{addStockModal.nombre}</span> — Stock actual: {addStockModal.cantidad}
@@ -720,8 +720,8 @@ const Products = () => {
       )}
 
       {returnModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
+          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-modalIn">
             <h2 className="text-xl font-bold text-white mb-4">
               Devolución / Cambio
             </h2>
@@ -888,15 +888,15 @@ const Products = () => {
                   </td>
                 </tr>
               ) : (
-                products.map((p) => (
-                  <tr key={p._id} className="border-t border-white/5 even:bg-white/[0.03] hover:bg-white/[0.05] transition-colors">
+                products.map((p, i) => (
+                  <tr key={p._id} className="border-t border-white/5 even:bg-white/[0.03] hover:bg-white/[0.05] transition-colors animate-rowIn" style={{ animationDelay: `${i * 25}ms` }}>
                     <td className="px-4 py-3 font-medium text-white">{p.nombre}</td>
                     <td
                       className="px-4 py-3 cursor-pointer"
                       onClick={() => setExpandedId(expandedId === p._id ? null : p._id)}
                     >
                       {expandedId === p._id ? (
-                        <div className="text-xs leading-relaxed space-y-0.5">
+                        <div className="text-xs leading-relaxed space-y-0.5 animate-slideDown">
                           {p.colores?.length > 0
                             ? p.colores.map((color) => {
                                 const vars = p.variants.filter((v) => v.color === color);

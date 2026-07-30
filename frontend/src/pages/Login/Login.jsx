@@ -28,7 +28,7 @@ const LoginModal = () => {
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
       <div className="relative w-full max-w-sm bg-neutral-900/90 border border-neutral-700/50 rounded-2xl p-8 shadow-2xl shadow-black/40 animate-[fadeIn_0.2s_ease-out]">
         <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 h-24 rounded-full bg-neutral-900 border-4 border-neutral-800 flex items-center justify-center shadow-xl overflow-hidden">
-          <div className="w-full h-full bg-neutral-700" />
+          <span className="text-lg font-bold text-white/30 tracking-wide">BS</span>
         </div>
 
         <div className="text-center mt-4 mb-8">

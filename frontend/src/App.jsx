@@ -8,6 +8,7 @@ import Suppliers from './pages/Suppliers/Suppliers'
 import Returns from './pages/Returns/Returns'
 import Sales from './pages/Sales/Sales'
 import LoadingSpinner from './components/common/LoadingSpinner'
+import WelcomeOverlay from './components/Layout/WelcomeOverlay'
 
 function App() {
   const { user, loading } = useAuth()
@@ -40,6 +41,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {!user && <LoginModal />}
+      {user && <WelcomeOverlay />}
     </>
   )
 }

@@ -113,8 +113,8 @@ const Suppliers = () => {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
+          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-md mx-4 animate-modalIn">
             <h2 className="text-xl font-bold text-white mb-4">
               {editing ? 'Editar Proveedor' : 'Nuevo Proveedor'}
             </h2>
