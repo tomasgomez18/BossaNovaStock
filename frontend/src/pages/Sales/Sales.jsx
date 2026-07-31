@@ -288,19 +288,6 @@ const Sales = () => {
       year: 'numeric',
     });
 
-  if (user && user.rol !== 'admin') {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <svg className="w-12 h-12 mx-auto text-white/20 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
-          <p className="text-white/40 text-sm">Solo el administrador puede acceder a Ventas</p>
-        </div>
-      </div>
-    );
-  }
-
   if (loading && activeTab === 'ventas') return <LoadingSpinner />;
 
   return (
@@ -335,14 +322,12 @@ const Sales = () => {
           </button>
         </div>
         <div className="flex items-center gap-2">
-          {user?.rol === 'admin' && (
-            <button
-              onClick={handleDailyClose}
-              className="text-sm text-green-400 bg-green-500/10 border border-green-500/30 px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition-all"
-            >
-              Cierre de Caja
-            </button>
-          )}
+          <button
+            onClick={handleDailyClose}
+            className="text-sm text-green-400 bg-green-500/10 border border-green-500/30 px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition-all"
+          >
+            Cierre de Caja
+          </button>
         </div>
       </div>
 
