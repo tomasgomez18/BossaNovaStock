@@ -6,6 +6,6 @@ export const getSales = (params) => api.get('/sales', { params });
 export const getSalesStats = (params) => api.get('/sales/stats', { params });
 export const getMostSold = (params) => api.get('/sales/most-sold', { params });
 export const deleteSale = (id) => api.delete(`/sales/${id}`);
-export const getDailyClose = () => api.get('/sales/daily-close');
+export const getDailyClose = (params) => api.get('/sales/daily-close', { params });
 export const getDailyCloses = (params) => api.get('/sales/daily-closes', { params });
 export const deleteDailyClose = (id) => api.delete(`/sales/daily-closes/${id}`);

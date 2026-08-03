@@ -159,8 +159,13 @@ const Sales = () => {
 
   const handleDailyClose = async () => {
     try {
-      const res = await getDailyClose();
+      const res = await getDailyClose({ offset: new Date().getTimezoneOffset() });
       const d = res.data;
+      const fechaLabel = new Date(d.fecha).toLocaleDateString('es-AR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
 
       const metodos = [
         { key: 'efectivo', label: 'Efectivo', color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/20' },
@@ -187,7 +192,7 @@ const Sales = () => {
         html: `
           <div class="text-left space-y-3" style="max-width: 420px; margin: 0 auto;">
             <div class="text-center mb-4">
-              <p class="text-xs text-white/40">${d.fecha}</p>
+              <p class="text-xs text-white/40">${fechaLabel}</p>
               <p class="text-3xl font-bold text-white mt-2">$${Number(d.total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
               <p class="text-xs text-white/40">${d.cantidad} unidades vendidas</p>
             </div>

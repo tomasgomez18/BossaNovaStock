@@ -4,6 +4,7 @@ import Product from '../Product/ProductModel.js';
 import Return from '../Return/ReturnModel.js';
 import DailyClose from './DailyCloseModel.js';
 import { createSaleSchema } from './SaleSchema.js';
+import { enviarCierreDeCaja, enviarMailTest } from '../../services/emailService.js';
 
 const parseDate = (str, offset = 0) => {
   if (!str) return null;
@@ -13,11 +14,24 @@ const parseDate = (str, offset = 0) => {
   return new Date(utcDate + offset * 60000);
 };
 
-const todayDateRange = () => {
-  const d = new Date();
-  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-  return { $gte: start, $lt: end };
+const getRange = (start, end, offset = 0) => {
+  const from = parseDate(start, Number(offset)) || new Date(0);
+  const to = parseDate(end, Number(offset));
+  return {
+    $gte: from,
+    $lt: to ? new Date(to.getTime() + 86400000) : new Date(8640000000000000),
+  };
+};
+
+const clientTodayDate = (offset = 0) => {
+  const local = new Date(Date.now() - Number(offset) * 60000);
+  return { y: local.getUTCFullYear(), m: local.getUTCMonth() + 1, d: local.getUTCDate() };
+};
+
+const todayRange = (offset = 0) => {
+  const { y, m, d } = clientTodayDate(offset);
+  const start = new Date(Date.UTC(y, m - 1, d) + Number(offset) * 60000);
+  return { $gte: start, $lt: new Date(start.getTime() + 86400000) };
 };
 
 const getItems = (sale) => {
@@ -161,9 +175,7 @@ export const getSales = async (req, res, next) => {
     const filter = {};
 
     if (desde || hasta) {
-      const start = parseDate(desde, Number(offset)) || new Date(0);
-      const end = parseDate(hasta, Number(offset));
-      filter.createdAt = { $gte: start, $lt: end ? new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1) : new Date(8640000000000000) };
+      filter.createdAt = getRange(desde, hasta, offset);
     }
 
     const sales = await Sale.find(filter)
@@ -185,9 +197,7 @@ export const getMostSold = async (req, res, next) => {
     const filter = {};
 
     if (desde || hasta) {
-      const start = parseDate(desde, Number(offset)) || new Date(0);
-      const end = parseDate(hasta, Number(offset));
-      filter.createdAt = { $gte: start, $lt: end ? new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1) : new Date(8640000000000000) };
+      filter.createdAt = getRange(desde, hasta, offset);
     }
 
     const sales = await Sale.find(filter);
@@ -228,7 +238,10 @@ export const getMostSold = async (req, res, next) => {
 
 export const getDailyClose = async (req, res, next) => {
   try {
-    const sales = await Sale.find({ createdAt: todayDateRange() });
+    const offset = Number(req.query.offset) || 0;
+    const sales = await Sale.find({ createdAt: todayRange(offset) })
+      .populate('items.producto', 'nombre categoria')
+      .populate('producto', 'nombre categoria');
 
     const total = sales.reduce((sum, s) => sum + s.total, 0);
     const cantidad = sales.reduce((sum, s) => {
@@ -259,8 +272,8 @@ export const getDailyClose = async (req, res, next) => {
       return acc;
     }, {});
 
-    const today = new Date();
-    const fechaDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const { y, m, d } = clientTodayDate(offset);
+    const fechaDate = new Date(Date.UTC(y, m - 1, d) + offset * 60000);
 
     const close = await DailyClose.findOneAndUpdate(
       { fecha: fechaDate },
@@ -276,8 +289,12 @@ export const getDailyClose = async (req, res, next) => {
       { upsert: true, new: true }
     );
 
+    enviarCierreDeCaja({ ventas: sales, close, offset }).catch((err) =>
+      console.error('[Mail] Error al enviar el cierre de caja:', err.message)
+    );
+
     res.json({
-      fecha: new Date().toLocaleDateString('es-AR'),
+      fecha: close.fecha,
       total: close.total,
       cantidad: close.cantidad,
       efectivo: close.efectivo,
@@ -296,12 +313,7 @@ export const getDailyCloses = async (req, res, next) => {
     const filter = {};
 
     if (desde || hasta) {
-      const start = parseDate(desde, Number(offset)) || new Date(0);
-      const end = parseDate(hasta, Number(offset));
-      filter.fecha = {
-        $gte: start,
-        $lt: end ? new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1) : new Date(8640000000000000),
-      };
+      filter.fecha = getRange(desde, hasta, offset);
     }
 
     const closes = await DailyClose.find(filter).sort({ fecha: -1 });
@@ -318,6 +330,16 @@ export const deleteDailyClose = async (req, res, next) => {
       return res.status(404).json({ message: 'Cierre no encontrado' });
     }
     res.json({ message: 'Cierre eliminado correctamente' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const mailTest = async (req, res, next) => {
+  try {
+    const offset = Number(req.query.offset) || new Date().getTimezoneOffset();
+    const datos = await enviarMailTest({ offset });
+    res.json({ message: 'Mail de prueba enviado', asunto: datos.subject });
   } catch (error) {
     next(error);
   }
@@ -350,9 +372,7 @@ export const getSalesStats = async (req, res, next) => {
     const filter = {};
 
     if (desde || hasta) {
-      const start = parseDate(desde, Number(offset)) || new Date(0);
-      const end = parseDate(hasta, Number(offset));
-      filter.createdAt = { $gte: start, $lt: end ? new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1) : new Date(8640000000000000) };
+      filter.createdAt = getRange(desde, hasta, offset);
     }
 
     const sales = await Sale.find(filter);
