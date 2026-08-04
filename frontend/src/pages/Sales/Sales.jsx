@@ -403,7 +403,7 @@ const Sales = () => {
 
       {activeTab === 'ventas' ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 [&>*]:min-w-0">
             <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5">
               <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Total Vendido</p>
               <p className="text-3xl font-bold text-green-400 break-words">
@@ -434,7 +434,7 @@ const Sales = () => {
             </div>
           </div>
 
-          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 flex flex-col md:flex-row md:items-center gap-4">
+          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 flex flex-col md:flex-row md:flex-wrap md:items-center gap-4">
             <div className="flex items-center gap-2 w-full md:w-auto">
               <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Desde</label>
               <input
@@ -479,7 +479,7 @@ const Sales = () => {
                   : `${new Date(desde).toLocaleDateString('es-AR')} al ${new Date(hasta).toLocaleDateString('es-AR')}`}
               `}
             </p>
-            <p className="text-2xl font-bold text-green-400 break-words">{formatMoney(data.total)}</p>
+            <p className="text-2xl font-bold text-green-400 break-words min-w-0">{formatMoney(data.total)}</p>
           </div>
 
           {mostSold.length > 0 && (
@@ -652,8 +652,8 @@ const Sales = () => {
                       </div>
                     </div>
                     <div className="flex items-center justify-between mb-3">
-                      <p className="text-2xl font-bold text-green-400 break-words">{formatMoney(s.total)}</p>
-                      <p className="text-xs text-white/30">{totalUnidades} unidades</p>
+                      <p className="text-2xl font-bold text-green-400 break-words min-w-0">{formatMoney(s.total)}</p>
+                      <p className="text-xs text-white/30 shrink-0">{totalUnidades} unidades</p>
                     </div>
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
                       <p className="text-xs text-white/30 truncate min-w-0 flex-1">
@@ -704,7 +704,7 @@ const Sales = () => {
         </>
       ) : (
         <>
-          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 flex flex-col md:flex-row md:items-center gap-4">
+          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 flex flex-col md:flex-row md:flex-wrap md:items-center gap-4">
             <div className="flex items-center gap-2 w-full md:w-auto">
               <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Desde</label>
               <input

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import {
   getProducts,
@@ -30,24 +30,6 @@ const variantShortLabel = (v) => {
   return parts.join(' / ') || '—';
 };
 
-const getDropdownPosition = (el) => {
-  const rect = el.getBoundingClientRect();
-  const W = 160;
-  const H = 220;
-  const GAP = 28;
-  let x = rect.left;
-  let y = rect.bottom + GAP;
-  if (y + H > window.innerHeight) {
-    y = rect.top - GAP - H;
-  }
-  if (y < 0) y = GAP;
-  if (x + W > window.innerWidth) {
-    x = rect.right - W;
-  }
-  if (x < 0) x = GAP;
-  return { x, y };
-};
-
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +37,29 @@ const Products = () => {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [dropdown, setDropdown] = useState({ product: null, x: 0, y: 0 });
+  const dropdownRef = useRef(null);
+  const anchorRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!dropdown.product) return;
+    const menu = dropdownRef.current;
+    const rect = anchorRef.current;
+    if (!menu || !rect) return;
+    const GAP = 8;
+    const W = menu.offsetWidth;
+    const H = menu.offsetHeight;
+    let x = rect.left;
+    let y = rect.bottom + GAP;
+    if (y + H > window.innerHeight) {
+      y = rect.top - GAP - H;
+    }
+    y = Math.max(GAP, Math.min(y, window.innerHeight - H - GAP));
+    if (x + W > window.innerWidth) {
+      x = rect.right - W;
+    }
+    x = Math.max(GAP, Math.min(x, window.innerWidth - W - GAP));
+    setDropdown((prev) => ({ ...prev, x, y }));
+  }, [dropdown.product]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -413,7 +418,7 @@ const Products = () => {
             {lowStockOpen && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setLowStockOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 z-40 w-72 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 py-2 animate-fadeIn max-h-64 overflow-y-auto">
+                <div className="absolute left-0 md:left-auto top-full mt-2 z-40 w-72 max-w-[calc(100vw-2rem)] bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 py-2 animate-fadeIn max-h-64 overflow-y-auto">
                   {bajos.map((item, i) => (
                     <div key={i} className="flex items-center gap-2 px-4 py-1.5 text-xs text-red-300/80">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-400/50 shrink-0" />
@@ -979,7 +984,8 @@ const Products = () => {
                           if (dropdown.product?._id === p._id) {
                             setDropdown({ product: null, x: 0, y: 0 });
                           } else {
-                            setDropdown({ product: p, ...getDropdownPosition(e.currentTarget) });
+                            anchorRef.current = e.currentTarget.getBoundingClientRect();
+                            setDropdown({ product: p, x: 0, y: 0 });
                           }
                         }}
                         className="p-2 rounded-lg hover:bg-white/10 text-white/40 transition-colors"
@@ -1023,7 +1029,8 @@ const Products = () => {
                         if (dropdown.product?._id === p._id) {
                           setDropdown({ product: null, x: 0, y: 0 });
                         } else {
-                          setDropdown({ product: p, ...getDropdownPosition(e.currentTarget) });
+                          anchorRef.current = e.currentTarget.getBoundingClientRect();
+                          setDropdown({ product: p, x: 0, y: 0 });
                         }
                       }}
                       className="p-2 rounded-lg hover:bg-white/10 text-white/40 transition-colors"
@@ -1089,6 +1096,7 @@ const Products = () => {
         <>
           <div className="fixed inset-0 z-30" onClick={() => setDropdown({ product: null, x: 0, y: 0 })} />
           <div
+            ref={dropdownRef}
             className="fixed z-40 w-40 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 py-1.5 animate-fadeIn"
             style={{ left: dropdown.x, top: dropdown.y }}
           >
