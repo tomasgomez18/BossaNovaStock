@@ -9,7 +9,7 @@ const links = [
 
 const Sidebar = () => {
   return (
-    <aside className="w-64 bg-neutral-900/50 backdrop-blur-xl border-r border-white/5 flex flex-col">
+    <aside className="hidden md:flex w-64 bg-neutral-900/50 backdrop-blur-xl border-r border-white/5 flex-col">
       <div className="p-6 border-b border-white/5">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">

@@ -63,6 +63,16 @@ const getPagos = (s) =>
 const getItems = (s) =>
   (s.items && s.items.length > 0 ? s.items : [{ producto: s.producto, cantidad: s.cantidad, precio: s.precio, talle: s.talle }]);
 
+const turnoLabel = (t) => (t === 'manana' ? 'Mañana' : t === 'tarde' ? 'Tarde' : 'Día completo');
+
+const turnoTableLabel = (t) => (t === 'manana' ? 'Turno Mañana' : t === 'tarde' ? 'Turno Tarde' : 'Día completo');
+
+const turnoBadge = (t) => {
+  if (t === 'manana') return 'bg-sky-500/20 text-sky-400';
+  if (t === 'tarde') return 'bg-orange-500/20 text-orange-400';
+  return 'bg-white/10 text-white/60';
+};
+
 const Sales = () => {
   const { user } = useAuth();
 
@@ -80,6 +90,7 @@ const Sales = () => {
   const [cDesde, setCDesde] = useState(today);
   const [cHasta, setCHasta] = useState(today);
   const [cActivePeriodo, setCActivePeriodo] = useState('dia');
+  const [cView, setCView] = useState('turno');
   const [closes, setCloses] = useState([]);
   const [closesLoading, setClosesLoading] = useState(false);
 
@@ -107,7 +118,7 @@ const Sales = () => {
 
   const fetchCloses = () => {
     setClosesLoading(true);
-    getDailyCloses({ desde: cDesde, hasta: cHasta, offset: new Date().getTimezoneOffset() })
+    getDailyCloses({ desde: cDesde, hasta: cHasta, offset: new Date().getTimezoneOffset(), agrupar: cView })
       .then((res) => setCloses(res.data))
       .catch(() => {})
       .finally(() => setClosesLoading(false));
@@ -122,44 +133,89 @@ const Sales = () => {
 
     const fechaStr = new Date(d.fecha).toLocaleDateString('es-AR');
 
-    const rowsHtml = metodos.map((m) => {
-      const info = d[m.key] || { total: 0, cantidad: 0 };
-      return `
-        <div class="flex items-center justify-between ${m.bg} ${m.border} border rounded-lg px-4 py-3">
-          <div>
-            <p class="text-sm font-medium text-white">${m.label}</p>
-            <p class="text-xs text-white/40">${info.cantidad} unidades</p>
+    const block = (c) => {
+      const rowsHtml = metodos.map((m) => {
+        const info = c[m.key] || { total: 0, cantidad: 0 };
+        return `
+          <div class="flex items-center justify-between ${m.bg} ${m.border} border rounded-lg px-4 py-3">
+            <div>
+              <p class="text-sm font-medium text-white">${m.label}</p>
+              <p class="text-xs text-white/40">${info.cantidad} unidades</p>
+            </div>
+            <p class="text-lg font-bold ${m.color}">$${Number(info.total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
           </div>
-          <p class="text-lg font-bold ${m.color}">$${Number(info.total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+        `;
+      }).join('');
+
+      return `
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-sm font-bold text-white">${turnoLabel(c.turno)}</p>
+            <p class="text-xs text-white/30">${new Date(c.cerradoAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} · ${c.cerradoPor || '—'}</p>
+          </div>
+          <p class="text-2xl font-bold text-green-400 mb-3">$${Number(c.total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+          <div class="space-y-2">${rowsHtml}</div>
         </div>
       `;
-    }).join('');
+    };
+
+    const esDia = Array.isArray(d.turnos);
+    const title = esDia
+      ? `Cierre del ${fechaStr}`
+      : `Cierre de ${turnoLabel(d.turno)} del ${fechaStr}`;
+
+    const html = esDia
+      ? `
+        <div class="text-left space-y-4" style="max-width: 420px; margin: 0 auto;">
+          <div class="text-center mb-1">
+            <p class="text-xs text-white/40">Total del día</p>
+            <p class="text-3xl font-bold text-white mt-1">$${Number(d.total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+            <p class="text-xs text-white/40 mt-1">${d.cantidad} unidades vendidas</p>
+          </div>
+          <div class="h-px bg-white/10"></div>
+          ${d.turnos.map(block).join('<div class="h-px bg-white/10"></div>')}
+        </div>
+      `
+      : `
+        <div class="text-left space-y-3" style="max-width: 420px; margin: 0 auto;">
+          ${block(d)}
+        </div>
+      `;
 
     Swal.fire({
       icon: 'info',
-      title: `Cierre del ${fechaStr}`,
-      html: `
-        <div class="text-left space-y-3" style="max-width: 420px; margin: 0 auto;">
-          <div class="text-center mb-4">
-            <p class="text-3xl font-bold text-white mt-2">$${Number(d.total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
-            <p class="text-xs text-white/40">${d.cantidad} unidades vendidas</p>
-            <p class="text-xs text-white/20 mt-1">Cerrado: ${new Date(d.cerradoAt).toLocaleString('es-AR')}</p>
-          </div>
-          <div class="h-px bg-white/10 my-4"></div>
-          ${rowsHtml}
-        </div>
-      `,
+      title,
+      html,
       confirmButtonText: 'Cerrar',
       background: '#171717',
       color: '#fff',
       confirmButtonColor: '#22c55e',
-      width: 480,
+      width: 'min(480px, 94vw)',
     });
   };
 
-  const handleDailyClose = async () => {
+  const handleDailyClose = async (turno) => {
+    const label = turno === 'tarde' ? 'Tarde' : 'Mañana';
+
+    const { value: cerradoPor } = await Swal.fire({
+      icon: 'question',
+      title: `Cierre de ${label}`,
+      text: '¿Quién cierra el turno?',
+      input: 'text',
+      inputPlaceholder: 'Nombre del empleado',
+      inputValidator: (v) => (v && v.trim() ? undefined : 'Debe indicar quién cierra el turno'),
+      showCancelButton: true,
+      confirmButtonText: 'Confirmar cierre',
+      cancelButtonText: 'Cancelar',
+      background: '#171717',
+      color: '#fff',
+      confirmButtonColor: '#22c55e',
+      customClass: { input: '!bg-neutral-800 !text-white !border-white/10' },
+    });
+    if (!cerradoPor) return;
+
     try {
-      const res = await getDailyClose({ offset: new Date().getTimezoneOffset() });
+      const res = await getDailyClose({ offset: new Date().getTimezoneOffset(), turno, cerradoPor });
       const d = res.data;
       const fechaLabel = new Date(d.fecha).toLocaleDateString('es-AR', {
         day: '2-digit',
@@ -188,11 +244,11 @@ const Sales = () => {
 
       await Swal.fire({
         icon: 'success',
-        title: `Cierre de Caja`,
+        title: `Cierre de ${label}`,
         html: `
           <div class="text-left space-y-3" style="max-width: 420px; margin: 0 auto;">
             <div class="text-center mb-4">
-              <p class="text-xs text-white/40">${fechaLabel}</p>
+              <p class="text-xs text-white/40">${fechaLabel} · Cerrado por ${d.cerradoPor}</p>
               <p class="text-3xl font-bold text-white mt-2">$${Number(d.total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
               <p class="text-xs text-white/40">${d.cantidad} unidades vendidas</p>
             </div>
@@ -207,13 +263,14 @@ const Sales = () => {
         background: '#171717',
         color: '#fff',
         confirmButtonColor: '#22c55e',
-        width: 480,
+        width: 'min(480px, 94vw)',
       });
 
       setActiveTab('cierres');
       setCDesde(today());
       setCHasta(today());
       setCActivePeriodo('dia');
+      fetchCloses();
     } catch (err) {
       Swal.fire({
         icon: 'error',
@@ -278,7 +335,7 @@ const Sales = () => {
 
   useEffect(() => {
     fetchCloses();
-  }, [cDesde, cHasta]);
+  }, [cDesde, cHasta, cView]);
 
   const selectPeriodo = (p) => {
     setActivePeriodo(p.key);
@@ -303,11 +360,11 @@ const Sales = () => {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex gap-1 bg-neutral-900/50 border border-white/5 rounded-lg p-1">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        <div className="flex gap-1 bg-neutral-900/50 border border-white/5 rounded-lg p-1 w-full sm:w-auto">
           <button
             onClick={() => setActiveTab('ventas')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === 'ventas'
                 ? 'bg-white/10 text-white'
                 : 'text-white/40 hover:text-white/60'
@@ -317,7 +374,7 @@ const Sales = () => {
           </button>
           <button
             onClick={() => setActiveTab('cierres')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === 'cierres'
                 ? 'bg-white/10 text-white'
                 : 'text-white/40 hover:text-white/60'
@@ -326,13 +383,21 @@ const Sales = () => {
             Cierres
           </button>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleDailyClose}
-            className="text-sm text-green-400 bg-green-500/10 border border-green-500/30 px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition-all"
-          >
-            Cierre de Caja
-          </button>
+        <div className="flex flex-col items-end gap-1 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => handleDailyClose('manana')}
+              className="flex-1 sm:flex-none text-sm text-sky-400 bg-sky-500/10 border border-sky-500/30 px-3 py-2 rounded-lg hover:bg-sky-500/20 transition-all"
+            >
+              Cierre Mañana
+            </button>
+            <button
+              onClick={() => handleDailyClose('tarde')}
+              className="flex-1 sm:flex-none text-sm text-orange-400 bg-orange-500/10 border border-orange-500/30 px-3 py-2 rounded-lg hover:bg-orange-500/20 transition-all"
+            >
+              Cierre Tarde
+            </button>
+          </div>
         </div>
       </div>
 
@@ -341,59 +406,59 @@ const Sales = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5">
               <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Total Vendido</p>
-              <p className="text-3xl font-bold text-green-400">
+              <p className="text-3xl font-bold text-green-400 break-words">
                 {formatMoney(stats?.total || 0)}
               </p>
               <p className="text-xs text-white/30 mt-1">{stats?.cantidad || 0} unidades</p>
             </div>
             <div className="bg-neutral-900/50 backdrop-blur-xl border border-green-500/20 rounded-xl p-5">
               <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Efectivo</p>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-2xl font-bold text-white break-words">
                 {formatMoney(stats?.efectivo?.total || 0)}
               </p>
               <p className="text-xs text-white/30 mt-1">{stats?.efectivo?.cantidad || 0} unidades</p>
             </div>
             <div className="bg-neutral-900/50 backdrop-blur-xl border border-blue-500/20 rounded-xl p-5">
               <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Transferencia</p>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-2xl font-bold text-white break-words">
                 {formatMoney(stats?.transferencia?.total || 0)}
               </p>
               <p className="text-xs text-white/30 mt-1">{stats?.transferencia?.cantidad || 0} unidades</p>
             </div>
             <div className="bg-neutral-900/50 backdrop-blur-xl border border-purple-500/20 rounded-xl p-5">
               <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Tarjeta de Credito</p>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-2xl font-bold text-white break-words">
                 {formatMoney(stats?.tarjeta?.total || 0)}
               </p>
               <p className="text-xs text-white/30 mt-1">{stats?.tarjeta?.cantidad || 0} unidades</p>
             </div>
           </div>
 
-          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-white/40 uppercase tracking-wider">Desde</label>
+          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Desde</label>
               <input
                 type="date"
                 value={desde}
                 onChange={(e) => setDesde(e.target.value)}
-                className="px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
+                className="flex-1 md:flex-none min-w-0 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-white/40 uppercase tracking-wider">Hasta</label>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Hasta</label>
               <input
                 type="date"
                 value={hasta}
                 onChange={(e) => setHasta(e.target.value)}
-                className="px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
+                className="flex-1 md:flex-none min-w-0 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
               />
             </div>
-            <div className="flex gap-2 ml-auto">
+            <div className="flex gap-2 md:ml-auto flex-wrap">
               {periodos.map((p) => (
                 <button
                   key={p.key}
                   onClick={() => selectPeriodo(p)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     activePeriodo === p.key
                       ? 'bg-white/10 text-white border border-white/10'
                       : 'text-white/40 hover:text-white/60 hover:bg-white/5'
@@ -405,7 +470,7 @@ const Sales = () => {
             </div>
           </div>
 
-          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 flex items-center justify-between">
+          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-white/50 text-sm">
               {!desde && !hasta
                 ? 'Todas las ventas'
@@ -414,7 +479,7 @@ const Sales = () => {
                   : `${new Date(desde).toLocaleDateString('es-AR')} al ${new Date(hasta).toLocaleDateString('es-AR')}`}
               `}
             </p>
-            <p className="text-2xl font-bold text-green-400">{formatMoney(data.total)}</p>
+            <p className="text-2xl font-bold text-green-400 break-words">{formatMoney(data.total)}</p>
           </div>
 
           {mostSold.length > 0 && (
@@ -423,11 +488,11 @@ const Sales = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {mostSold.map((item) => (
                   <div key={item.productoId} className="border border-white/5 rounded-lg p-3 flex items-center justify-between bg-white/[0.02]">
-                    <div>
-                      <p className="font-medium text-white text-sm">{item.nombre}</p>
-                      <p className="text-xs text-white/30">{item.categoria}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium text-white text-sm truncate">{item.nombre}</p>
+                      <p className="text-xs text-white/30 truncate">{item.categoria}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <p className="text-sm font-bold text-green-400">{formatMoney(item.ingresos)}</p>
                       <p className="text-xs text-white/30">{item.totalVendido} unid.</p>
                     </div>
@@ -437,7 +502,7 @@ const Sales = () => {
             </div>
           )}
 
-          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-x-auto">
+          <div className="hidden md:block bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-white/5">
                 <tr>
@@ -552,29 +617,135 @@ const Sales = () => {
               </tbody>
             </table>
           </div>
+
+          <div className="md:hidden space-y-3">
+            {data.sales.length === 0 ? (
+              <div className="text-center py-8 text-white/30 text-sm">
+                No hay ventas en este periodo
+              </div>
+            ) : (
+              data.sales.map((s) => {
+                const items = getItems(s);
+                const isExpanded = expandedId === s._id;
+                const totalUnidades = items.reduce((acc, i) => acc + (Number(i.cantidad) || 0), 0);
+                return (
+                  <div key={s._id} className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-4">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <p className="font-medium text-white truncate min-w-0">
+                        {items[0]?.producto?.nombre || 'Producto'}
+                        {items.length > 1 && <span className="text-white/40 font-normal"> +{items.length - 1} más</span>}
+                      </p>
+                      <div className="flex flex-wrap gap-1 justify-end shrink-0">
+                        {getPagos(s).map((p, i) => (
+                          <span
+                            key={i}
+                            className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                              p.metodo === 'efectivo' ? 'bg-green-500/20 text-green-400' :
+                              p.metodo === 'transferencia' ? 'bg-blue-500/20 text-blue-400' :
+                              'bg-purple-500/20 text-purple-400'
+                            }`}
+                          >
+                            {p.metodo === 'efectivo' ? 'Efectivo' : p.metodo === 'transferencia' ? 'Transferencia' : 'Tarjeta'}
+                            <span className="ml-1 opacity-60">${Number(p.monto).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-2xl font-bold text-green-400 break-words">{formatMoney(s.total)}</p>
+                      <p className="text-xs text-white/30">{totalUnidades} unidades</p>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+                      <p className="text-xs text-white/30 truncate min-w-0 flex-1">
+                        {new Date(s.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} · {s.empleado}
+                        {s.descuento ? ` · ${s.descuento}% desc.` : ''}
+                      </p>
+                      <div className="flex gap-2 shrink-0">
+                        {user?.rol === 'admin' && (
+                          <button
+                            onClick={() => handleDelete(s._id)}
+                            className="text-red-400 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
+                          >
+                            Eliminar
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setExpandedId(isExpanded ? null : s._id)}
+                          className="text-blue-400 text-xs border border-blue-500/30 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-all"
+                        >
+                          {isExpanded ? 'Ocultar' : 'Ver detalle'}
+                        </button>
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
+                        {items.map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between gap-2 text-sm">
+                            <div className="min-w-0">
+                              <p className="text-white font-medium truncate">{item.producto?.nombre || 'Producto'}</p>
+                              <p className="text-xs text-white/30">
+                                {item.producto?.categoria || '—'}
+                                {item.talle ? ` · Talle ${item.talle}` : ''}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-white">{item.cantidad} × {formatMoney(item.precio)}</p>
+                              <p className="text-xs text-green-400 font-medium">{formatMoney(item.subtotal || item.precio * item.cantidad)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </>
       ) : (
         <>
-          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-white/40 uppercase tracking-wider">Desde</label>
+          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Desde</label>
               <input
                 type="date"
                 value={cDesde}
                 onChange={(e) => setCDesde(e.target.value)}
-                className="px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
+                className="flex-1 md:flex-none min-w-0 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-white/40 uppercase tracking-wider">Hasta</label>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Hasta</label>
               <input
                 type="date"
                 value={cHasta}
                 onChange={(e) => setCHasta(e.target.value)}
-                className="px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
+                className="flex-1 md:flex-none min-w-0 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
               />
             </div>
-            <div className="flex gap-2 ml-auto">
+            <div className="flex gap-1 bg-white/5 rounded-lg p-1 w-full md:w-auto">
+              <button
+                onClick={() => setCView('turno')}
+                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  cView === 'turno'
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/40 hover:text-white/60'
+                }`}
+              >
+                Por turno
+              </button>
+              <button
+                onClick={() => setCView('dia')}
+                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  cView === 'dia'
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/40 hover:text-white/60'
+                }`}
+              >
+                Por día (total)
+              </button>
+            </div>
+            <div className="flex gap-2 md:ml-auto flex-wrap">
               {periodos.map((p) => (
                 <button
                   key={p.key}
@@ -583,7 +754,7 @@ const Sales = () => {
                     setCDesde(p.desde());
                     setCHasta(p.hasta());
                   }}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     cActivePeriodo === p.key
                       ? 'bg-white/10 text-white border border-white/10'
                       : 'text-white/40 hover:text-white/60 hover:bg-white/5'
@@ -595,7 +766,7 @@ const Sales = () => {
             </div>
           </div>
 
-          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-x-auto">
+          <div className="hidden md:block bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-x-auto">
             {closesLoading ? (
               <div className="flex justify-center py-8">
                 <LoadingSpinner />
@@ -605,26 +776,43 @@ const Sales = () => {
                 <thead className="bg-white/5">
                   <tr>
                     <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Fecha</th>
+                    <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Turno</th>
                     <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Total</th>
                     <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Cant.</th>
                     <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Efectivo</th>
                     <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Transferencia</th>
                     <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Tarjeta</th>
                     <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Cerrado</th>
+                    <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Cerrado por</th>
                     <th className="text-right px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Accion</th>
                   </tr>
                 </thead>
                 <tbody>
                   {closes.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center py-8 text-white/30">
+                      <td colSpan={10} className="text-center py-8 text-white/30">
                         No hay cierres en este periodo
                       </td>
                     </tr>
                   ) : (
                     closes.map((c) => (
-                      <tr key={c._id} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
+                      <tr key={c._id || c.fecha} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
                         <td className="px-4 py-3 font-medium text-white">{formatDateShort(c.fecha)}</td>
+                        <td className="px-4 py-3">
+                          {c.turnos ? (
+                            <div className="flex flex-wrap gap-1">
+                              {c.turnos.map((t, i) => (
+                                <span key={i} className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${turnoBadge(t.turno)}`}>
+                                  {turnoTableLabel(t.turno)}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${turnoBadge(c.turno)}`}>
+                              {turnoTableLabel(c.turno)}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-green-400 font-medium">{formatMoney(c.total)}</td>
                         <td className="px-4 py-3 text-white">{c.cantidad}</td>
                         <td className="px-4 py-3 text-white">
@@ -640,6 +828,11 @@ const Sales = () => {
                           <span className="text-white/30 text-xs ml-1">({c.tarjeta?.cantidad || 0})</span>
                         </td>
                         <td className="px-4 py-3 text-white/30 text-xs">{new Date(c.cerradoAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</td>
+                        <td className="px-4 py-3 text-white/50">
+                          {c.turnos
+                            ? [...new Set(c.turnos.map((t) => t.cerradoPor).filter(Boolean))].join(' / ') || '—'
+                            : c.cerradoPor || '—'}
+                        </td>
                         <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
                           <button
                             onClick={() => viewCloseDetail(c)}
@@ -647,7 +840,7 @@ const Sales = () => {
                           >
                             Ver
                           </button>
-                          {user?.rol === 'admin' && (
+                          {!c.turnos && user?.rol === 'admin' && (
                             <button
                               onClick={() => handleDeleteClose(c._id)}
                               className="text-red-400 hover:text-red-300 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
@@ -661,6 +854,79 @@ const Sales = () => {
                   )}
                 </tbody>
               </table>
+            )}
+          </div>
+
+          <div className="md:hidden space-y-3">
+            {closesLoading ? (
+              <div className="flex justify-center py-8">
+                <LoadingSpinner />
+              </div>
+            ) : closes.length === 0 ? (
+              <div className="text-center py-8 text-white/30 text-sm">
+                No hay cierres en este periodo
+              </div>
+            ) : (
+              closes.map((c) => (
+                <div key={c._id || c.fecha} className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-4">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="font-medium text-white">{formatDateShort(c.fecha)}</p>
+                    <div className="flex flex-wrap gap-1 justify-end">
+                      {c.turnos ? (
+                        c.turnos.map((t, i) => (
+                          <span key={i} className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${turnoBadge(t.turno)}`}>
+                            {turnoTableLabel(t.turno)}
+                          </span>
+                        ))
+                      ) : (
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${turnoBadge(c.turno)}`}>
+                          {turnoTableLabel(c.turno)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-2xl font-bold text-green-400">{formatMoney(c.total)}</p>
+                    <p className="text-xs text-white/30">{c.cantidad} unidades</p>
+                  </div>
+                  <div className="space-y-2">
+                    {[
+                      { key: 'efectivo', label: 'Efectivo', color: 'text-green-400' },
+                      { key: 'transferencia', label: 'Transferencia', color: 'text-blue-400' },
+                      { key: 'tarjeta', label: 'Tarjeta', color: 'text-purple-400' },
+                    ].map((m) => (
+                      <div key={m.key} className="flex items-center justify-between text-sm">
+                        <span className="text-white/40">{m.label} <span className="text-white/20 text-xs">({c[m.key]?.cantidad || 0} unid.)</span></span>
+                        <span className={`font-medium ${m.color}`}>{formatMoney(c[m.key]?.total || 0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+                    <p className="text-xs text-white/30">
+                      {new Date(c.cerradoAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} ·{' '}
+                      {c.turnos
+                        ? [...new Set(c.turnos.map((t) => t.cerradoPor).filter(Boolean))].join(' / ') || '—'
+                        : c.cerradoPor || '—'}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => viewCloseDetail(c)}
+                        className="text-blue-400 text-xs border border-blue-500/30 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-all"
+                      >
+                        Ver
+                      </button>
+                      {!c.turnos && user?.rol === 'admin' && (
+                        <button
+                          onClick={() => handleDeleteClose(c._id)}
+                          className="text-red-400 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
+                        >
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </>

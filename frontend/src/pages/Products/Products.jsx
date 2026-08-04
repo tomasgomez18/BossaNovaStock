@@ -362,12 +362,12 @@ const Products = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-white">Productos</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <button
             onClick={openCart}
-            className="relative bg-amber-500/20 text-amber-400 border border-amber-500/30 px-4 py-2 rounded-lg transition-all text-sm hover:bg-amber-500/30"
+            className="relative flex-1 sm:flex-none bg-amber-500/20 text-amber-400 border border-amber-500/30 px-4 py-2 rounded-lg transition-all text-sm hover:bg-amber-500/30"
           >
             Carrito
             {cart.length > 0 && (
@@ -379,7 +379,7 @@ const Products = () => {
           {user?.rol === 'admin' && (
             <button
               onClick={openCreate}
-              className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-4 py-2 rounded-lg transition-all text-sm"
+              className="flex-1 sm:flex-none bg-white/10 hover:bg-white/20 text-white border border-white/10 px-4 py-2 rounded-lg transition-all text-sm"
             >
               + Nuevo Producto
             </button>
@@ -463,7 +463,7 @@ const Products = () => {
 
       {quickAdd && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-sm mx-4 animate-modalIn">
+          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto animate-modalIn">
             <h2 className="text-lg font-bold text-white mb-1">Agregar al Carrito</h2>
             <p className="text-white/50 text-sm mb-4">{quickAdd.nombre}</p>
             <div className="space-y-4">
@@ -518,18 +518,28 @@ const Products = () => {
 
             <div className="space-y-2 mb-4">
               {cart.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/5 rounded-lg">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{item.nombre}</p>
-                    {(item.talle || item.color) && (
-                      <p className="text-xs text-white/40 mt-0.5">
-                        {item.talle && <span>Talle: {item.talle}</span>}
-                        {item.talle && item.color && <span> | </span>}
-                        {item.color && <span>Color: {item.color}</span>}
-                      </p>
-                    )}
+                <div key={idx} className="p-3 bg-white/[0.03] border border-white/5 rounded-lg flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 min-w-0 flex items-start justify-between gap-2 sm:block">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{item.nombre}</p>
+                      {(item.talle || item.color) && (
+                        <p className="text-xs text-white/40 mt-0.5">
+                          {item.talle && <span>Talle: {item.talle}</span>}
+                          {item.talle && item.color && <span> | </span>}
+                          {item.color && <span>Color: {item.color}</span>}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => removeFromCart(idx)}
+                      className="text-red-400 hover:text-red-300 p-1 sm:hidden shrink-0"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 sm:ml-auto shrink-0 w-full sm:w-auto">
                     <input
                       type="text" inputMode="numeric"
                       value={item.cantidad}
@@ -554,7 +564,7 @@ const Products = () => {
                     </span>
                     <button
                       onClick={() => removeFromCart(idx)}
-                      className="text-red-400 hover:text-red-300 p-1"
+                      className="text-red-400 hover:text-red-300 p-1 hidden sm:block"
                     >
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -566,7 +576,7 @@ const Products = () => {
             </div>
 
             <div className="border-t border-white/10 pt-4 space-y-3 mb-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Empleado</label>
                   <input
@@ -647,7 +657,7 @@ const Products = () => {
                           const v = e.target.value;
                           if (v === '' || /^\d*\.?\d*$/.test(v)) setSellMonto2(v);
                         }}
-                        className="w-28 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white text-sm text-right focus:outline-none focus:border-white/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-24 sm:w-28 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white text-sm text-right focus:outline-none focus:border-white/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
                   </div>
@@ -655,23 +665,23 @@ const Products = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-white/10 pt-4">
-              <div className="text-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-t border-white/10 pt-4">
+              <div className="text-sm text-center sm:text-left">
                 {descuentoNum > 0 && (
                   <span className="text-green-400/80 mr-3">Desc. {descuentoNum}%</span>
                 )}
                 <span className="text-white/70 font-semibold">Total: <span className="text-white font-mono text-lg">${finalTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span></span>
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-3 w-full sm:w-auto">
                 <button
                   onClick={() => setShowCart(false)}
-                  className="px-4 py-2 text-white/50 border border-white/10 rounded-lg text-sm hover:bg-white/5 transition-all"
+                  className="flex-1 sm:flex-none px-4 py-2 text-white/50 border border-white/10 rounded-lg text-sm hover:bg-white/5 transition-all"
                 >
                   Seguir comprando
                 </button>
                 <button
                   onClick={confirmSale}
-                  className="px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg text-sm hover:bg-green-500/30 transition-all"
+                  className="flex-1 sm:flex-none px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg text-sm hover:bg-green-500/30 transition-all"
                 >
                   Confirmar Venta
                 </button>
@@ -683,7 +693,7 @@ const Products = () => {
 
       {addStockModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-sm mx-4 animate-modalIn">
+          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto animate-modalIn">
             <h2 className="text-xl font-bold text-white mb-2">Agregar Stock</h2>
             <p className="text-white/50 text-sm mb-4">
               <span className="text-white font-semibold">{addStockModal.nombre}</span> — Stock actual: {addStockModal.cantidad}
@@ -867,7 +877,7 @@ const Products = () => {
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-x-auto">
+        <div className="hidden md:block bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-white/5">
               <tr>
@@ -984,6 +994,94 @@ const Products = () => {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="md:hidden space-y-3">
+          {products.length === 0 ? (
+            <div className="text-center py-8 text-white/30 text-sm">
+              {error || 'No hay productos'}
+            </div>
+          ) : (
+            products.map((p) => (
+              <div key={p._id} className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-white">{p.nombre}</p>
+                    <p className="text-xs text-white/30 mt-0.5">
+                      {p.categoria}
+                      {p.proveedor ? ` · ${p.proveedor}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${(p.stockMinimo != null && p.cantidad <= p.stockMinimo) ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white/60'}`}>
+                      {p.cantidad}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        if (dropdown.product?._id === p._id) {
+                          setDropdown({ product: null, x: 0, y: 0 });
+                        } else {
+                          setDropdown({ product: p, ...getDropdownPosition(e.currentTarget) });
+                        }
+                      }}
+                      className="p-2 rounded-lg hover:bg-white/10 text-white/40 transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setExpandedId(expandedId === p._id ? null : p._id)}
+                  className="w-full flex items-center justify-between mt-3 text-left"
+                >
+                  <span className="text-white/70">
+                    {p.precio != null ? `$${Number(p.precio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '—'}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs text-white/40">
+                    {p.colores?.length > 0
+                      ? `${p.colores.length} ${p.colores.length === 1 ? 'color' : 'colores'}`
+                      : p.variants?.length > 0
+                        ? `${p.variants.length} variantes`
+                        : 'Ver detalle'}
+                    <svg className={`w-3 h-3 transition-transform ${expandedId === p._id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </span>
+                </button>
+                {expandedId === p._id && (
+                  <div className="mt-3 pt-3 border-t border-white/5 text-xs leading-relaxed space-y-1 animate-slideDown">
+                    {p.colores?.length > 0
+                      ? p.colores.map((color) => {
+                          const vars = p.variants.filter((v) => v.color === color);
+                          return (
+                            <div key={color}>
+                              <span className="font-semibold text-white/80">{color}: </span>
+                              {vars.length > 0
+                                ? vars.map((v, i) => (
+                                    <span key={i} className="text-white/50">
+                                      {v.talle}({v.cantidad}){i < vars.length - 1 ? ' · ' : ''}
+                                    </span>
+                                  ))
+                                : <span className="text-white/30">—</span>}
+                            </div>
+                          );
+                        })
+                      : p.variants?.length > 0
+                        ? p.variants.map((v, i) => (
+                            <span key={i} className="text-white/50">
+                              {variantShortLabel(v)}:{v.cantidad}{i < p.variants.length - 1 ? ', ' : ''}
+                            </span>
+                          ))
+                        : <span className="text-white/30">—</span>}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       )}
 

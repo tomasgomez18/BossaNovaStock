@@ -28,10 +28,9 @@ const clientTodayDate = (offset = 0) => {
   return { y: local.getUTCFullYear(), m: local.getUTCMonth() + 1, d: local.getUTCDate() };
 };
 
-const todayRange = (offset = 0) => {
+const startOfDayDate = (offset = 0) => {
   const { y, m, d } = clientTodayDate(offset);
-  const start = new Date(Date.UTC(y, m - 1, d) + Number(offset) * 60000);
-  return { $gte: start, $lt: new Date(start.getTime() + 86400000) };
+  return new Date(Date.UTC(y, m - 1, d) + Number(offset) * 60000);
 };
 
 const getItems = (sale) => {
@@ -239,7 +238,30 @@ export const getMostSold = async (req, res, next) => {
 export const getDailyClose = async (req, res, next) => {
   try {
     const offset = Number(req.query.offset) || 0;
-    const sales = await Sale.find({ createdAt: todayRange(offset) })
+    const turno = req.query.turno === 'tarde' ? 'tarde' : 'manana';
+    const cerradoPor = String(req.query.cerradoPor || '').trim();
+    if (!cerradoPor) {
+      return res.status(400).json({ message: 'Debe indicar quién cierra el turno' });
+    }
+
+    const fechaDate = startOfDayDate(offset);
+    const now = new Date();
+
+    const existing = await DailyClose.findOne({ fecha: fechaDate, turno });
+    let desdeAt;
+    let hastaAt;
+    if (existing) {
+      ({ desdeAt, hastaAt } = existing);
+    } else if (turno === 'manana') {
+      desdeAt = fechaDate;
+      hastaAt = now;
+    } else {
+      const mananaClose = await DailyClose.findOne({ fecha: fechaDate, turno: 'manana' });
+      desdeAt = (mananaClose && mananaClose.hastaAt) || fechaDate;
+      hastaAt = now;
+    }
+
+    const sales = await Sale.find({ createdAt: { $gte: desdeAt, $lt: hastaAt } })
       .populate('items.producto', 'nombre categoria')
       .populate('producto', 'nombre categoria');
 
@@ -272,13 +294,14 @@ export const getDailyClose = async (req, res, next) => {
       return acc;
     }, {});
 
-    const { y, m, d } = clientTodayDate(offset);
-    const fechaDate = new Date(Date.UTC(y, m - 1, d) + offset * 60000);
-
     const close = await DailyClose.findOneAndUpdate(
-      { fecha: fechaDate },
+      { fecha: fechaDate, turno },
       {
         fecha: fechaDate,
+        turno,
+        desdeAt,
+        hastaAt,
+        cerradoPor,
         total,
         cantidad,
         efectivo: porMetodo.efectivo || { total: 0, cantidad: 0 },
@@ -289,12 +312,37 @@ export const getDailyClose = async (req, res, next) => {
       { upsert: true, new: true }
     );
 
-    enviarCierreDeCaja({ ventas: sales, close, offset }).catch((err) =>
+    let totalDia = null;
+    if (turno === 'tarde') {
+      const mananaClose = await DailyClose.findOne({ fecha: fechaDate, turno: 'manana' });
+      if (mananaClose) {
+        totalDia = {
+          total: mananaClose.total + close.total,
+          cantidad: mananaClose.cantidad + close.cantidad,
+          efectivo: {
+            total: mananaClose.efectivo.total + close.efectivo.total,
+            cantidad: mananaClose.efectivo.cantidad + close.efectivo.cantidad,
+          },
+          transferencia: {
+            total: mananaClose.transferencia.total + close.transferencia.total,
+            cantidad: mananaClose.transferencia.cantidad + close.transferencia.cantidad,
+          },
+          tarjeta: {
+            total: mananaClose.tarjeta.total + close.tarjeta.total,
+            cantidad: mananaClose.tarjeta.cantidad + close.tarjeta.cantidad,
+          },
+        };
+      }
+    }
+
+    enviarCierreDeCaja({ ventas: sales, close, offset, turno, totalDia }).catch((err) =>
       console.error('[Mail] Error al enviar el cierre de caja:', err.message)
     );
 
     res.json({
       fecha: close.fecha,
+      turno: close.turno,
+      cerradoPor: close.cerradoPor,
       total: close.total,
       cantidad: close.cantidad,
       efectivo: close.efectivo,
@@ -309,14 +357,46 @@ export const getDailyClose = async (req, res, next) => {
 
 export const getDailyCloses = async (req, res, next) => {
   try {
-    const { desde, hasta, offset = 0 } = req.query;
+    const { desde, hasta, offset = 0, agrupar = 'turno' } = req.query;
     const filter = {};
 
     if (desde || hasta) {
       filter.fecha = getRange(desde, hasta, offset);
     }
 
-    const closes = await DailyClose.find(filter).sort({ fecha: -1 });
+    const closes = await DailyClose.find(filter).sort({ fecha: -1, turno: 1 });
+
+    if (agrupar === 'dia') {
+      const grupos = new Map();
+      for (const c of closes) {
+        const key = c.fecha.toISOString();
+        if (!grupos.has(key)) {
+          grupos.set(key, {
+            fecha: c.fecha,
+            total: 0,
+            cantidad: 0,
+            efectivo: { total: 0, cantidad: 0 },
+            transferencia: { total: 0, cantidad: 0 },
+            tarjeta: { total: 0, cantidad: 0 },
+            cerradoAt: new Date(0),
+            turnos: [],
+          });
+        }
+        const g = grupos.get(key);
+        g.total += c.total;
+        g.cantidad += c.cantidad;
+        g.efectivo.total += c.efectivo?.total || 0;
+        g.efectivo.cantidad += c.efectivo?.cantidad || 0;
+        g.transferencia.total += c.transferencia?.total || 0;
+        g.transferencia.cantidad += c.transferencia?.cantidad || 0;
+        g.tarjeta.total += c.tarjeta?.total || 0;
+        g.tarjeta.cantidad += c.tarjeta?.cantidad || 0;
+        if (c.cerradoAt > g.cerradoAt) g.cerradoAt = c.cerradoAt;
+        g.turnos.push(c);
+      }
+      return res.json([...grupos.values()]);
+    }
+
     res.json(closes);
   } catch (error) {
     next(error);
@@ -360,7 +440,11 @@ export const runMigration = async (req, res, next) => {
       await sale.save();
       count++;
     }
-    res.json({ message: `Migradas ${count} ventas al formato items[]` });
+    try {
+      await DailyClose.collection.dropIndex('fecha_1');
+    } catch {}
+    await DailyClose.syncIndexes();
+    res.json({ message: `Migradas ${count} ventas al formato items[]; índices de cierres actualizados` });
   } catch (error) {
     next(error);
   }

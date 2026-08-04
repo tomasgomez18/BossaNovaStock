@@ -99,14 +99,14 @@ const Suppliers = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-white">Proveedores</h1>
         <button
           onClick={() => {
             resetForm();
             setShowForm(true);
           }}
-          className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-4 py-2 rounded-lg transition-all text-sm"
+          className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border border-white/10 px-4 py-2 rounded-lg transition-all text-sm"
         >
           + Nuevo Proveedor
         </button>
@@ -114,7 +114,7 @@ const Suppliers = () => {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-md mx-4 animate-modalIn">
+          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto animate-modalIn">
             <h2 className="text-xl font-bold text-white mb-4">
               {editing ? 'Editar Proveedor' : 'Nuevo Proveedor'}
             </h2>
@@ -185,7 +185,7 @@ const Suppliers = () => {
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-hidden">
+        <div className="hidden md:block bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-white/5">
               <tr>
@@ -229,6 +229,51 @@ const Suppliers = () => {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="md:hidden space-y-3">
+          {suppliers.length === 0 ? (
+            <div className="text-center py-8 text-white/30 text-sm">
+              No hay proveedores
+            </div>
+          ) : (
+            suppliers.map((sup) => (
+              <div key={sup._id} className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-white">{sup.nombre}</p>
+                    <p className="text-xs text-white/30 mt-0.5 truncate">{sup.email || '—'}</p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => handleEdit(sup)}
+                      className="text-blue-400 text-xs border border-blue-500/30 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-all"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(sup._id)}
+                      className="text-red-400 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-white/5 space-y-1 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/40 text-xs">Teléfono</span>
+                    <span className="text-white/70">{sup.telefono || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/40 text-xs">Dirección</span>
+                    <span className="text-white/70 text-right">{sup.direccion || '—'}</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>

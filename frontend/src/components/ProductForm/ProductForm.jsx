@@ -126,8 +126,8 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="col-span-1 sm:col-span-2">
           <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
             Nombre <span className="text-red-400">*</span>
           </label>
@@ -259,7 +259,7 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
                           placeholder="Talle"
                           value={form.variants[i].talle}
                           onChange={(e) => updateVariant(i, 'talle', e.target.value)}
-                          className="w-24 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
+                          className="flex-1 sm:flex-none w-24 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
                         />
                         <input
                           type="number"
@@ -267,7 +267,7 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
                           placeholder="Cantidad"
                           value={form.variants[i].cantidad}
                           onChange={(e) => updateVariant(i, 'cantidad', e.target.value)}
-                          className="w-24 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
+                          className="flex-1 sm:flex-none w-24 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
                         />
                         <button
                           type="button"
@@ -293,7 +293,7 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
             })}
           </div>
 
-          <div className="flex items-center gap-4 mt-3 text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3 text-xs">
             <span className="text-white/50">
               Total: <span className="text-white font-semibold">{totalCantidad}</span> unidades
             </span>
@@ -319,7 +319,7 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
             Categoría <span className="text-red-400">*</span>

@@ -67,7 +67,7 @@ const Returns = () => {
         </div>
       )}
 
-      <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-x-auto">
+      <div className="hidden md:block bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-white/5">
             <tr>
@@ -111,6 +111,50 @@ const Returns = () => {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="md:hidden space-y-3">
+        {returns.length === 0 ? (
+          <div className="text-center py-8 text-white/30 text-sm">
+            No hay devoluciones registradas
+          </div>
+        ) : (
+          returns.map((r) => (
+            <div key={r._id} className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium text-white">{r.producto?.nombre}</p>
+                  <p className="text-xs text-white/30 mt-0.5">
+                    {r.producto?.categoria || '—'}
+                    {r.talle ? ` · Talle ${r.talle}` : ''}
+                  </p>
+                </div>
+                {user?.rol === 'admin' && (
+                  <button
+                    onClick={() => handleDelete(r._id)}
+                    className="text-red-400 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all shrink-0"
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
+              <div className="mt-3 pt-3 border-t border-white/5 space-y-1 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-white/40 text-xs">Cantidad</span>
+                  <span className="text-white/70">{r.cantidad}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/40 text-xs">Motivo</span>
+                  <span className="text-white/70">{r.motivo}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/40 text-xs">Fecha</span>
+                  <span className="text-white/50 text-xs">{formatDate(r.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

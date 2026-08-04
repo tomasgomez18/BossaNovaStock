@@ -50,7 +50,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-app.use('/api/auth', authLimiter, AuthRoutes);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth', AuthRoutes);
 app.use('/api/suppliers', SupplierRoutes);
 app.use('/api/products', ProductRoutes);
 app.use('/api/returns', ReturnRoutes);
