@@ -95,6 +95,7 @@ const Sales = () => {
   const [closesLoading, setClosesLoading] = useState(false);
 
   const [expandedId, setExpandedId] = useState(null);
+  const [resendingId, setResendingId] = useState(null);
   const [showCloseHint, setShowCloseHint] = useState(true);
 
   const fetchData = () => {
@@ -370,11 +371,14 @@ const Sales = () => {
   };
 
   const handleResendCloseMail = async (id) => {
+    setResendingId(id);
     try {
       await resendCloseMail(id);
       Swal.fire({ icon: 'success', title: 'Mail reenviado', timer: 2000, showConfirmButton: false, background: '#171717', color: '#fff' });
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al reenviar el mail', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -918,11 +922,16 @@ const Sales = () => {
                           </button>
                           {!c.turnos && (
                             <button
-                            onClick={() => handleResendCloseMail(c._id)}
-                            className="text-emerald-400 hover:text-emerald-300 text-xs border border-emerald-500/30 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-all"
-                          >
-                            Reenviar
-                          </button>
+                              onClick={() => handleResendCloseMail(c._id)}
+                              disabled={resendingId === c._id}
+                              className={`text-xs border px-2 py-1 rounded-lg transition-all ${
+                                resendingId === c._id
+                                  ? 'text-amber-400 border-amber-500/30 bg-amber-500/10 cursor-wait'
+                                  : 'text-emerald-400 hover:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/10'
+                              }`}
+                            >
+                              {resendingId === c._id ? 'Pendiente…' : 'Reenviar'}
+                            </button>
                           )}
                           {!c.turnos && user?.rol === 'admin' && (
                             <button
@@ -1002,9 +1011,14 @@ const Sales = () => {
                       {!c.turnos && (
                         <button
                           onClick={() => handleResendCloseMail(c._id)}
-                          className="text-emerald-400 hover:text-emerald-300 text-xs border border-emerald-500/30 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-all"
+                          disabled={resendingId === c._id}
+                          className={`text-xs border px-2 py-1 rounded-lg transition-all ${
+                            resendingId === c._id
+                              ? 'text-amber-400 border-amber-500/30 bg-amber-500/10 cursor-wait'
+                              : 'text-emerald-400 hover:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/10'
+                          }`}
                         >
-                          Reenviar
+                          {resendingId === c._id ? 'Pendiente…' : 'Reenviar'}
                         </button>
                       )}
                       {!c.turnos && user?.rol === 'admin' && (

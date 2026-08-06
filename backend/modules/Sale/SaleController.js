@@ -444,6 +444,35 @@ export const deleteDailyClose = async (req, res, next) => {
   }
 };
 
+const getVentanaDeCierre = async (close) => {
+  const fecha = close.fecha;
+  const dayMs = 86400000;
+
+  let desdeAt = close.desdeAt;
+  let hastaAt = close.hastaAt;
+
+  if (!desdeAt) {
+    if (close.turno === 'tarde') {
+      const mananaClose = await DailyClose.findOne({ fecha, turno: 'manana' });
+      desdeAt = (mananaClose && mananaClose.hastaAt) || fecha;
+    } else {
+      desdeAt = fecha;
+    }
+  }
+
+  if (!hastaAt) {
+    hastaAt = new Date(fecha.getTime() + dayMs);
+    if (close.turno === 'manana') {
+      const tardeClose = await DailyClose.findOne({ fecha, turno: 'tarde' });
+      if (tardeClose?.desdeAt && tardeClose.desdeAt < hastaAt) {
+        hastaAt = tardeClose.desdeAt;
+      }
+    }
+  }
+
+  return { desdeAt, hastaAt };
+};
+
 export const resendCloseMail = async (req, res, next) => {
   try {
     const close = await DailyClose.findById(req.params.id);
@@ -453,7 +482,9 @@ export const resendCloseMail = async (req, res, next) => {
 
     const offset = Number(req.body?.offset) || Number(req.query?.offset) || 0;
 
-    const sales = await Sale.find({ createdAt: { $gte: close.desdeAt, $lt: close.hastaAt } })
+    const { desdeAt, hastaAt } = await getVentanaDeCierre(close);
+
+    const sales = await Sale.find({ createdAt: { $gte: desdeAt, $lt: hastaAt } })
       .populate('items.producto', 'nombre categoria')
       .populate('producto', 'nombre categoria');
 
