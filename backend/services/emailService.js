@@ -1,4 +1,6 @@
 import nodemailer from 'nodemailer';
+import dns from 'node:dns';
+import net from 'node:net';
 
 const MAX_LINEAS = 8;
 
@@ -13,13 +15,23 @@ const estaConfigurado = () => Boolean(
   process.env.MAIL_TO
 );
 
-const crearTransporter = () => {
+const resolveIpv4 = async (host) => {
+  if (net.isIP(host)) return host;
+  const addresses = await dns.promises.resolve4(host);
+  const ip = addresses && addresses[0];
+  if (!ip) throw new Error(`Sin direcciones IPv4 para ${host}`);
+  return ip;
+};
+
+const crearTransporter = async () => {
+  const host = process.env.MAIL_HOST || 'smtp.gmail.com';
+  const ip = await resolveIpv4(host);
   const port = Number(process.env.MAIL_PORT || 465);
   return nodemailer.createTransport({
-    host: process.env.MAIL_HOST || 'smtp.gmail.com',
+    host: ip,
+    servername: host,
     port,
     secure: port === 465,
-    family: 4,
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 20000,
@@ -35,7 +47,7 @@ export const verificarMail = async () => {
     throw new Error('Mail no configurado: faltan MAIL_USER / MAIL_PASS / MAIL_TO en el servidor');
   }
 
-  const transporter = crearTransporter();
+  const transporter = await crearTransporter();
   await transporter.verify();
   return {
     host: process.env.MAIL_HOST || 'smtp.gmail.com',
@@ -153,7 +165,7 @@ export const buildDatosCierre = ({ ventas, close, offset = 0, turno, totalDia })
 };
 
 const enviarCorreo = async ({ subject, text, html }) => {
-  const transporter = crearTransporter();
+  const transporter = await crearTransporter();
   await transporter.sendMail({
     from: `"Bossa Nova" <${process.env.MAIL_USER}>`,
     to: process.env.MAIL_TO,
