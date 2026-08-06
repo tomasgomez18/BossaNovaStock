@@ -14,9 +14,9 @@ const estaConfigurado = () => Boolean(
 );
 
 const crearTransporter = () => {
-  const port = Number(process.env.MAIL_PORT || 587);
+  const port = Number(process.env.MAIL_PORT || 465);
   return nodemailer.createTransport({
-    host: process.env.MAIL_HOST || 'smtp-relay.brevo.com',
+    host: process.env.MAIL_HOST || 'smtp.gmail.com',
     port,
     secure: port === 465,
     auth: {

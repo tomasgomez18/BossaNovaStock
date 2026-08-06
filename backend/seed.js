@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './config/env.js';
 import bcrypt from 'bcryptjs';
 
 const email = process.env.ADMIN_EMAIL || 'admin@ejemplo.com';
