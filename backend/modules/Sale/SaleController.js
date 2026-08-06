@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import net from 'node:net';
 import Sale from './SaleModel.js';
 import Product from '../Product/ProductModel.js';
 import Return from '../Return/ReturnModel.js';
@@ -516,6 +517,34 @@ export const mailStatus = async (req, res, next) => {
       to: process.env.MAIL_TO || '(vacío)',
     });
   }
+};
+
+export const netProbe = async (req, res, next) => {
+  const host = String(req.query.host || '').trim();
+  const port = Number(req.query.port);
+
+  if (!host || !Number.isInteger(port) || port < 1 || port > 65535) {
+    return res.status(400).json({ message: 'Parámetros inválidos: host y port (1-65535) son requeridos' });
+  }
+  if (host.includes('://') || /[\s/]/.test(host)) {
+    return res.status(400).json({ message: 'host inválido' });
+  }
+
+  const TIMEOUT = 5000;
+  const t0 = Date.now();
+  const socket = net.connect({ host, port, timeout: TIMEOUT, family: 4 });
+
+  const resultado = await new Promise((resolve) => {
+    const done = (reachable, error) => {
+      socket.destroy();
+      resolve({ host, port, reachable, error: error || null, ms: Date.now() - t0 });
+    };
+    socket.once('connect', () => done(true, null));
+    socket.once('timeout', () => done(false, 'timeout'));
+    socket.once('error', (err) => done(false, err.code || err.message));
+  });
+
+  res.json(resultado);
 };
 
 export const runMigration = async (req, res, next) => {

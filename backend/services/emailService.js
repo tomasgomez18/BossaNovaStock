@@ -52,6 +52,7 @@ export const verificarMail = async () => {
   return {
     host: process.env.MAIL_HOST || 'smtp.gmail.com',
     port: Number(process.env.MAIL_PORT || 465),
+    ip: transporter.options.host,
     user: process.env.MAIL_USER,
     to: process.env.MAIL_TO,
   };

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createSale, deleteSale, getSales, getSalesStats, getMostSold, getDailyClose, getDailyCloses, deleteDailyClose, resendCloseMail, mailTest, mailStatus, runMigration } from './SaleController.js';
+import { createSale, deleteSale, getSales, getSalesStats, getMostSold, getDailyClose, getDailyCloses, deleteDailyClose, resendCloseMail, mailTest, mailStatus, netProbe, runMigration } from './SaleController.js';
 import { protect, admin } from '../../middlewares/AuthMiddleware.js';
 
 const router = Router();
@@ -15,6 +15,7 @@ router.get('/most-sold', getMostSold);
 router.get('/', getSales);
 router.post('/mail-test', admin, mailTest);
 router.get('/mail-status', admin, mailStatus);
+router.get('/net-probe', admin, netProbe);
 router.post('/migrate', admin, runMigration);
 router.post('/', createSale);
 router.delete('/:id', admin, deleteSale);
