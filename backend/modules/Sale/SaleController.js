@@ -511,8 +511,8 @@ export const mailStatus = async (req, res, next) => {
     console.error('[Mail] mail-status:', detalle);
     res.status(500).json({
       message: `Fallo al conectar con el SMTP: ${detalle}`,
-      host: process.env.MAIL_HOST || 'smtp.gmail.com',
-      port: Number(process.env.MAIL_PORT || 465),
+      host: process.env.MAIL_HOST || 'smtp-relay.brevo.com',
+      port: Number(process.env.MAIL_PORT || 587),
       user: process.env.MAIL_USER ? `*${process.env.MAIL_USER.slice(-4)}` : '(vacío)',
       to: process.env.MAIL_TO || '(vacío)',
     });

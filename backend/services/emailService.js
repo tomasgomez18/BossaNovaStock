@@ -1,6 +1,4 @@
 import nodemailer from 'nodemailer';
-import dns from 'node:dns';
-import net from 'node:net';
 
 const MAX_LINEAS = 8;
 
@@ -15,25 +13,16 @@ const estaConfigurado = () => Boolean(
   process.env.MAIL_TO
 );
 
-const resolveIpv4 = async (host) => {
-  if (net.isIP(host)) return host;
-  const addresses = await dns.promises.resolve4(host);
-  const ip = addresses && addresses[0];
-  if (!ip) throw new Error(`Sin direcciones IPv4 para ${host}`);
-  return ip;
-};
-
-const crearTransporter = async () => {
-  const host = process.env.MAIL_HOST || 'smtp.gmail.com';
-  const ip = await resolveIpv4(host);
-  const port = Number(process.env.MAIL_PORT || 465);
+const crearTransporter = () => {
+  const host = process.env.MAIL_HOST || 'smtp-relay.brevo.com';
+  const port = Number(process.env.MAIL_PORT || 587);
   return nodemailer.createTransport({
-    host: ip,
-    servername: host,
+    host,
     port,
     secure: port === 465,
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
+    requireTLS: port !== 465,
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
     socketTimeout: 20000,
     auth: {
       user: process.env.MAIL_USER,
@@ -42,17 +31,18 @@ const crearTransporter = async () => {
   });
 };
 
+const mailFrom = () => process.env.MAIL_FROM || `"Bossa Nova" <${process.env.MAIL_USER}>`;
+
 export const verificarMail = async () => {
   if (!estaConfigurado()) {
     throw new Error('Mail no configurado: faltan MAIL_USER / MAIL_PASS / MAIL_TO en el servidor');
   }
 
-  const transporter = await crearTransporter();
+  const transporter = crearTransporter();
   await transporter.verify();
   return {
-    host: process.env.MAIL_HOST || 'smtp.gmail.com',
-    port: Number(process.env.MAIL_PORT || 465),
-    ip: transporter.options.host,
+    host: process.env.MAIL_HOST || 'smtp-relay.brevo.com',
+    port: Number(process.env.MAIL_PORT || 587),
     user: process.env.MAIL_USER,
     to: process.env.MAIL_TO,
   };
@@ -166,9 +156,9 @@ export const buildDatosCierre = ({ ventas, close, offset = 0, turno, totalDia })
 };
 
 const enviarCorreo = async ({ subject, text, html }) => {
-  const transporter = await crearTransporter();
+  const transporter = crearTransporter();
   await transporter.sendMail({
-    from: `"Bossa Nova" <${process.env.MAIL_USER}>`,
+    from: mailFrom(),
     to: process.env.MAIL_TO,
     subject,
     text,

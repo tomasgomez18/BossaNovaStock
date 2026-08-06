@@ -9,3 +9,4 @@ export const deleteSale = (id) => api.delete(`/sales/${id}`);
 export const getDailyClose = (params) => api.get('/sales/daily-close', { params });
 export const getDailyCloses = (params) => api.get('/sales/daily-closes', { params });
 export const deleteDailyClose = (id) => api.delete(`/sales/daily-closes/${id}`);
+export const resendCloseMail = (id) => api.post(`/sales/daily-closes/${id}/resend-mail`);

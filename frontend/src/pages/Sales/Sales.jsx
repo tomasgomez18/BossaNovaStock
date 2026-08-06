@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import Swal from 'sweetalert2';
-import { getSales, getSalesStats, getMostSold, deleteSale, getDailyClose, getDailyCloses, deleteDailyClose } from '../../api/sales';
+import { getSales, getSalesStats, getMostSold, deleteSale, getDailyClose, getDailyCloses, deleteDailyClose, resendCloseMail } from '../../api/sales';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
 
@@ -366,6 +366,15 @@ const Sales = () => {
       fetchCloses();
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al eliminar cierre', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+    }
+  };
+
+  const handleResendCloseMail = async (id) => {
+    try {
+      await resendCloseMail(id);
+      Swal.fire({ icon: 'success', title: 'Mail reenviado', timer: 2000, showConfirmButton: false, background: '#171717', color: '#fff' });
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al reenviar el mail', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
     }
   };
 
@@ -908,18 +917,12 @@ const Sales = () => {
                             Ver
                           </button>
                           {!c.turnos && (
-                            <span className="relative inline-block group">
-                              <button
-                                disabled
-                                className="text-emerald-400/40 text-xs border border-emerald-500/20 px-2 py-1 rounded-lg cursor-not-allowed"
-                              >
-                                Reenviar
-                              </button>
-                              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-neutral-800 border border-white/10 text-white text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl z-50">
-                                <span className="absolute left-1/2 -translate-x-1/2 top-full border-[5px] border-transparent border-t-neutral-800"></span>
-                                En mantenimiento
-                              </span>
-                            </span>
+                            <button
+                            onClick={() => handleResendCloseMail(c._id)}
+                            className="text-emerald-400 hover:text-emerald-300 text-xs border border-emerald-500/30 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-all"
+                          >
+                            Reenviar
+                          </button>
                           )}
                           {!c.turnos && user?.rol === 'admin' && (
                             <button
@@ -997,18 +1000,12 @@ const Sales = () => {
                         Ver
                       </button>
                       {!c.turnos && (
-                        <span className="relative inline-block group">
-                          <button
-                            disabled
-                            className="text-emerald-400/40 text-xs border border-emerald-500/20 px-2 py-1 rounded-lg cursor-not-allowed"
-                          >
-                            Reenviar
-                          </button>
-                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-neutral-800 border border-white/10 text-white text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl z-50">
-                            <span className="absolute left-1/2 -translate-x-1/2 top-full border-[5px] border-transparent border-t-neutral-800"></span>
-                            En mantenimiento
-                          </span>
-                        </span>
+                        <button
+                          onClick={() => handleResendCloseMail(c._id)}
+                          className="text-emerald-400 hover:text-emerald-300 text-xs border border-emerald-500/30 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-all"
+                        >
+                          Reenviar
+                        </button>
                       )}
                       {!c.turnos && user?.rol === 'admin' && (
                         <button
