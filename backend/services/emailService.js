@@ -19,11 +19,30 @@ const crearTransporter = () => {
     host: process.env.MAIL_HOST || 'smtp.gmail.com',
     port,
     secure: port === 465,
+    family: 4,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
     auth: {
       user: process.env.MAIL_USER,
       pass: process.env.MAIL_PASS,
     },
   });
+};
+
+export const verificarMail = async () => {
+  if (!estaConfigurado()) {
+    throw new Error('Mail no configurado: faltan MAIL_USER / MAIL_PASS / MAIL_TO en el servidor');
+  }
+
+  const transporter = crearTransporter();
+  await transporter.verify();
+  return {
+    host: process.env.MAIL_HOST || 'smtp.gmail.com',
+    port: Number(process.env.MAIL_PORT || 465),
+    user: process.env.MAIL_USER,
+    to: process.env.MAIL_TO,
+  };
 };
 
 const toLocal = (fecha, offset) => new Date(fecha.getTime() - Number(offset) * 60000);

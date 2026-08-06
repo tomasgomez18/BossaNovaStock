@@ -96,6 +96,7 @@ const Sales = () => {
 
   const [expandedId, setExpandedId] = useState(null);
   const [resendingId, setResendingId] = useState(null);
+  const [showCloseHint, setShowCloseHint] = useState(true);
 
   const fetchData = () => {
     setLoading(true);
@@ -197,26 +198,65 @@ const Sales = () => {
 
   const handleDailyClose = async (turno) => {
     const label = turno === 'tarde' ? 'Tarde' : 'Mañana';
+    const hoy = today();
 
-    const { value: cerradoPor } = await Swal.fire({
+    const { value, isConfirmed } = await Swal.fire({
       icon: 'question',
       title: `Cierre de ${label}`,
-      text: '¿Quién cierra el turno?',
-      input: 'text',
-      inputPlaceholder: 'Nombre del empleado',
-      inputValidator: (v) => (v && v.trim() ? undefined : 'Debe indicar quién cierra el turno'),
+      html: `
+        <div class="text-left space-y-4" style="max-width: 380px; margin: 0 auto;">
+          <div>
+            <label class="block text-xs text-white/40 uppercase tracking-wider mb-1.5">Fecha del cierre</label>
+            <input type="date" id="swal-fecha" value="${hoy}" max="${hoy}"
+              class="w-full px-3 py-2 bg-neutral-800 border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm" />
+            <p class="text-xs text-white/30 mt-1.5 text-left">¿Te olvidaste de cerrar un turno? Podés elegir la fecha y cerrar un día anterior.</p>
+          </div>
+          <div>
+            <label class="block text-xs text-white/40 uppercase tracking-wider mb-1.5">Quién cierra el turno</label>
+            <input type="text" id="swal-cerrado-por" placeholder="Nombre del empleado"
+              class="w-full px-3 py-2 bg-neutral-800 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-all text-sm" />
+          </div>
+        </div>
+      `,
       showCancelButton: true,
       confirmButtonText: 'Confirmar cierre',
       cancelButtonText: 'Cancelar',
       background: '#171717',
       color: '#fff',
       confirmButtonColor: '#22c55e',
-      customClass: { input: '!bg-neutral-800 !text-white !border-white/10' },
+      preConfirm: () => {
+        const fecha = Swal.getPopup().querySelector('#swal-fecha').value;
+        const nombre = Swal.getPopup().querySelector('#swal-cerrado-por').value.trim();
+        if (!nombre) {
+          Swal.showValidationMessage('Debe indicar quién cierra el turno');
+          return false;
+        }
+        return { fecha, nombre };
+      },
     });
-    if (!cerradoPor) return;
+    if (!isConfirmed || !value) return;
+
+    const { fecha, nombre } = value;
+
+    if (fecha !== hoy) {
+      const confirmado = await Swal.fire({
+        icon: 'warning',
+        title: `¿Cerrar el turno del ${new Date(`${fecha}T00:00:00`).toLocaleDateString('es-AR')}?`,
+        text: 'Estás cerrando un turno de un día anterior. Verificá los montos antes de confirmar.',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, cerrar',
+        cancelButtonText: 'Cancelar',
+        background: '#171717',
+        color: '#fff',
+        confirmButtonColor: '#f59e0b',
+      });
+      if (!confirmado.isConfirmed) return;
+    }
 
     try {
-      const res = await getDailyClose({ offset: new Date().getTimezoneOffset(), turno, cerradoPor });
+      const params = { offset: new Date().getTimezoneOffset(), turno, cerradoPor: nombre };
+      if (fecha !== hoy) params.fecha = fecha;
+      const res = await getDailyClose(params);
       const d = res.data;
       const fechaLabel = new Date(d.fecha).toLocaleDateString('es-AR', {
         day: '2-digit',
@@ -719,6 +759,24 @@ const Sales = () => {
         </>
       ) : (
         <>
+          {showCloseHint && (
+            <div className="mb-4 flex items-start gap-3 bg-sky-500/10 border border-sky-500/30 rounded-xl px-4 py-3">
+              <p className="text-sm text-sky-300 flex-1">
+                <span className="font-medium">¿Te olvidaste de cerrar un turno?</span>{' '}
+                Tocá <span className="font-medium">Cierre Mañana</span> o{' '}
+                <span className="font-medium">Cierre Tarde</span> y cambiá la fecha para cerrar un día anterior.
+              </p>
+              <button
+                onClick={() => setShowCloseHint(false)}
+                className="text-sky-400/60 hover:text-sky-300 transition-colors shrink-0"
+                aria-label="Ocultar aviso"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
           <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 space-y-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">

@@ -4,7 +4,7 @@ import Product from '../Product/ProductModel.js';
 import Return from '../Return/ReturnModel.js';
 import DailyClose from './DailyCloseModel.js';
 import { createSaleSchema } from './SaleSchema.js';
-import { enviarCierreDeCaja, enviarMailTest } from '../../services/emailService.js';
+import { enviarCierreDeCaja, enviarMailTest, verificarMail } from '../../services/emailService.js';
 
 const parseDate = (str, offset = 0) => {
   if (!str) return null;
@@ -244,21 +244,49 @@ export const getDailyClose = async (req, res, next) => {
       return res.status(400).json({ message: 'Debe indicar quién cierra el turno' });
     }
 
-    const fechaDate = startOfDayDate(offset);
     const now = new Date();
+    const hoyInicio = startOfDayDate(offset);
+
+    let esHoy;
+    let fechaDate;
+    if (!req.query.fecha) {
+      esHoy = true;
+      fechaDate = hoyInicio;
+    } else {
+      fechaDate = parseDate(req.query.fecha, Number(offset));
+      if (!fechaDate) {
+        return res.status(400).json({ message: 'Fecha inválida' });
+      }
+      if (fechaDate.getTime() > hoyInicio.getTime()) {
+        return res.status(400).json({ message: 'No se puede cerrar una fecha futura' });
+      }
+      esHoy = fechaDate.getTime() === hoyInicio.getTime();
+    }
 
     const existing = await DailyClose.findOne({ fecha: fechaDate, turno });
+    if (!esHoy && existing) {
+      return res.status(400).json({ message: 'Ese turno de esa fecha ya fue cerrado' });
+    }
+
     let desdeAt;
-    let hastaAt;
-    if (existing) {
-      ({ desdeAt, hastaAt } = existing);
+    if (existing?.hastaAt) {
+      desdeAt = existing.hastaAt;
+    } else if (existing) {
+      desdeAt = existing.desdeAt || fechaDate;
     } else if (turno === 'manana') {
       desdeAt = fechaDate;
-      hastaAt = now;
     } else {
       const mananaClose = await DailyClose.findOne({ fecha: fechaDate, turno: 'manana' });
       desdeAt = (mananaClose && mananaClose.hastaAt) || fechaDate;
-      hastaAt = now;
+    }
+
+    let hastaAt = esHoy ? now : new Date(fechaDate.getTime() + 86400000);
+
+    if (!esHoy && turno === 'manana') {
+      const tardeClose = await DailyClose.findOne({ fecha: fechaDate, turno: 'tarde' });
+      if (tardeClose?.desdeAt && tardeClose.desdeAt < hastaAt) {
+        hastaAt = tardeClose.desdeAt;
+      }
     }
 
     const sales = await Sale.find({ createdAt: { $gte: desdeAt, $lt: hastaAt } })
@@ -457,7 +485,9 @@ export const resendCloseMail = async (req, res, next) => {
     }
     res.json({ message: 'Mail del cierre reenviado correctamente' });
   } catch (error) {
-    next(error);
+    const detalle = error.message || error.code || 'Error desconocido';
+    console.error('[Mail] Error al reenviar mail del cierre:', detalle);
+    return res.status(500).json({ message: `No se pudo enviar el mail: ${detalle}` });
   }
 };
 
@@ -468,6 +498,23 @@ export const mailTest = async (req, res, next) => {
     res.json({ message: 'Mail de prueba enviado', asunto: datos.subject });
   } catch (error) {
     next(error);
+  }
+};
+
+export const mailStatus = async (req, res, next) => {
+  try {
+    const datos = await verificarMail();
+    res.json({ message: 'Conexión SMTP y autenticación OK', ...datos });
+  } catch (error) {
+    const detalle = error.message || error.code || 'Error desconocido';
+    console.error('[Mail] mail-status:', detalle);
+    res.status(500).json({
+      message: `Fallo al conectar con el SMTP: ${detalle}`,
+      host: process.env.MAIL_HOST || 'smtp.gmail.com',
+      port: Number(process.env.MAIL_PORT || 465),
+      user: process.env.MAIL_USER ? `*${process.env.MAIL_USER.slice(-4)}` : '(vacío)',
+      to: process.env.MAIL_TO || '(vacío)',
+    });
   }
 };
 
