@@ -415,6 +415,52 @@ export const deleteDailyClose = async (req, res, next) => {
   }
 };
 
+export const resendCloseMail = async (req, res, next) => {
+  try {
+    const close = await DailyClose.findById(req.params.id);
+    if (!close) {
+      return res.status(404).json({ message: 'Cierre no encontrado' });
+    }
+
+    const offset = Number(req.body?.offset) || Number(req.query?.offset) || 0;
+
+    const sales = await Sale.find({ createdAt: { $gte: close.desdeAt, $lt: close.hastaAt } })
+      .populate('items.producto', 'nombre categoria')
+      .populate('producto', 'nombre categoria');
+
+    let totalDia = null;
+    if (close.turno === 'tarde') {
+      const mananaClose = await DailyClose.findOne({ fecha: close.fecha, turno: 'manana' });
+      if (mananaClose) {
+        totalDia = {
+          total: mananaClose.total + close.total,
+          cantidad: mananaClose.cantidad + close.cantidad,
+          efectivo: {
+            total: mananaClose.efectivo.total + close.efectivo.total,
+            cantidad: mananaClose.efectivo.cantidad + close.efectivo.cantidad,
+          },
+          transferencia: {
+            total: mananaClose.transferencia.total + close.transferencia.total,
+            cantidad: mananaClose.transferencia.cantidad + close.transferencia.cantidad,
+          },
+          tarjeta: {
+            total: mananaClose.tarjeta.total + close.tarjeta.total,
+            cantidad: mananaClose.tarjeta.cantidad + close.tarjeta.cantidad,
+          },
+        };
+      }
+    }
+
+    const resultado = await enviarCierreDeCaja({ ventas: sales, close, offset, turno: close.turno, totalDia });
+    if (!resultado.enviado) {
+      return res.status(500).json({ message: 'Mail no configurado en el servidor' });
+    }
+    res.json({ message: 'Mail del cierre reenviado correctamente' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const mailTest = async (req, res, next) => {
   try {
     const offset = Number(req.query.offset) || new Date().getTimezoneOffset();

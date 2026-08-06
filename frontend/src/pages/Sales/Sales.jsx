@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import Swal from 'sweetalert2';
-import { getSales, getSalesStats, getMostSold, deleteSale, getDailyClose, getDailyCloses, deleteDailyClose } from '../../api/sales';
+import { getSales, getSalesStats, getMostSold, deleteSale, getDailyClose, getDailyCloses, deleteDailyClose, resendCloseMail } from '../../api/sales';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
 
@@ -95,6 +95,7 @@ const Sales = () => {
   const [closesLoading, setClosesLoading] = useState(false);
 
   const [expandedId, setExpandedId] = useState(null);
+  const [resendingId, setResendingId] = useState(null);
 
   const fetchData = () => {
     setLoading(true);
@@ -329,6 +330,18 @@ const Sales = () => {
     }
   };
 
+  const handleResendMail = async (id) => {
+    setResendingId(id);
+    try {
+      await resendCloseMail(id, new Date().getTimezoneOffset());
+      Swal.fire({ icon: 'success', title: 'Mail reenviado', text: 'El correo del cierre fue reenviado correctamente.', background: '#171717', color: '#fff', confirmButtonColor: '#22c55e', confirmButtonText: 'OK' });
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'No se pudo reenviar el mail.', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, [desde, hasta]);
@@ -434,31 +447,33 @@ const Sales = () => {
             </div>
           </div>
 
-          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 flex flex-col md:flex-row md:flex-wrap md:items-center gap-4">
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Desde</label>
-              <input
-                type="date"
-                value={desde}
-                onChange={(e) => setDesde(e.target.value)}
-                className="flex-1 md:flex-none min-w-0 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
-              />
+          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Desde</label>
+                <input
+                  type="date"
+                  value={desde}
+                  onChange={(e) => setDesde(e.target.value)}
+                  className="flex-1 sm:flex-none min-w-0 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Hasta</label>
+                <input
+                  type="date"
+                  value={hasta}
+                  onChange={(e) => setHasta(e.target.value)}
+                  className="flex-1 sm:flex-none min-w-0 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Hasta</label>
-              <input
-                type="date"
-                value={hasta}
-                onChange={(e) => setHasta(e.target.value)}
-                className="flex-1 md:flex-none min-w-0 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
-              />
-            </div>
-            <div className="flex gap-2 md:ml-auto flex-wrap">
+            <div className="flex gap-2">
               {periodos.map((p) => (
                 <button
                   key={p.key}
                   onClick={() => selectPeriodo(p)}
-                  className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     activePeriodo === p.key
                       ? 'bg-white/10 text-white border border-white/10'
                       : 'text-white/40 hover:text-white/60 hover:bg-white/5'
@@ -704,48 +719,49 @@ const Sales = () => {
         </>
       ) : (
         <>
-          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 flex flex-col md:flex-row md:flex-wrap md:items-center gap-4">
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Desde</label>
-              <input
-                type="date"
-                value={cDesde}
-                onChange={(e) => setCDesde(e.target.value)}
-                className="flex-1 md:flex-none min-w-0 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
-              />
+          <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Desde</label>
+                  <input
+                    type="date"
+                    value={cDesde}
+                    onChange={(e) => setCDesde(e.target.value)}
+                    className="flex-1 sm:flex-none min-w-0 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
+                  />
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Hasta</label>
+                  <input
+                    type="date"
+                    value={cHasta}
+                    onChange={(e) => setCHasta(e.target.value)}
+                    className="flex-1 sm:flex-none min-w-0 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-xs text-white/40 uppercase tracking-wider">
+                  Vista por día
+                </span>
+                <button
+                  onClick={() => setCView(cView === 'turno' ? 'dia' : 'turno')}
+                  role="switch"
+                  aria-checked={cView === 'dia'}
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${
+                    cView === 'dia' ? 'bg-green-500' : 'bg-white/10'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                      cView === 'dia' ? 'translate-x-5' : ''
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <label className="text-xs text-white/40 uppercase tracking-wider shrink-0">Hasta</label>
-              <input
-                type="date"
-                value={cHasta}
-                onChange={(e) => setCHasta(e.target.value)}
-                className="flex-1 md:flex-none min-w-0 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
-              />
-            </div>
-            <div className="flex gap-1 bg-white/5 rounded-lg p-1 w-full md:w-auto">
-              <button
-                onClick={() => setCView('turno')}
-                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  cView === 'turno'
-                    ? 'bg-white/10 text-white'
-                    : 'text-white/40 hover:text-white/60'
-                }`}
-              >
-                Por turno
-              </button>
-              <button
-                onClick={() => setCView('dia')}
-                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  cView === 'dia'
-                    ? 'bg-white/10 text-white'
-                    : 'text-white/40 hover:text-white/60'
-                }`}
-              >
-                Por día (total)
-              </button>
-            </div>
-            <div className="flex gap-2 md:ml-auto flex-wrap">
+            <div className="flex gap-2">
               {periodos.map((p) => (
                 <button
                   key={p.key}
@@ -754,7 +770,7 @@ const Sales = () => {
                     setCDesde(p.desde());
                     setCHasta(p.hasta());
                   }}
-                  className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     cActivePeriodo === p.key
                       ? 'bg-white/10 text-white border border-white/10'
                       : 'text-white/40 hover:text-white/60 hover:bg-white/5'
@@ -840,6 +856,15 @@ const Sales = () => {
                           >
                             Ver
                           </button>
+                          {!c.turnos && (
+                            <button
+                              onClick={() => handleResendMail(c._id)}
+                              disabled={resendingId === c._id}
+                              className="text-emerald-400 hover:text-emerald-300 text-xs border border-emerald-500/30 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              {resendingId === c._id ? 'Enviando...' : 'Reenviar'}
+                            </button>
+                          )}
                           {!c.turnos && user?.rol === 'admin' && (
                             <button
                               onClick={() => handleDeleteClose(c._id)}
@@ -915,6 +940,15 @@ const Sales = () => {
                       >
                         Ver
                       </button>
+                      {!c.turnos && (
+                        <button
+                          onClick={() => handleResendMail(c._id)}
+                          disabled={resendingId === c._id}
+                          className="text-emerald-400 text-xs border border-emerald-500/30 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {resendingId === c._id ? 'Enviando...' : 'Reenviar'}
+                        </button>
+                      )}
                       {!c.turnos && user?.rol === 'admin' && (
                         <button
                           onClick={() => handleDeleteClose(c._id)}
