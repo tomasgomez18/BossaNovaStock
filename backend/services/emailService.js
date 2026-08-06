@@ -2,16 +2,21 @@ import nodemailer from 'nodemailer';
 
 const MAX_LINEAS = 8;
 
+const MODO_API = Boolean(process.env.BREVO_API_KEY);
+
 export const formatoPesos = (n) =>
   `$${Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const pad = (x) => String(x).padStart(2, '0');
 
-const estaConfigurado = () => Boolean(
-  process.env.MAIL_USER &&
-  process.env.MAIL_PASS &&
-  process.env.MAIL_TO
-);
+const estaConfigurado = () => {
+  if (MODO_API) return Boolean(process.env.MAIL_TO);
+  return Boolean(
+    process.env.MAIL_USER &&
+    process.env.MAIL_PASS &&
+    process.env.MAIL_TO
+  );
+};
 
 const crearTransporter = () => {
   const host = process.env.MAIL_HOST || 'smtp-relay.brevo.com';
@@ -35,12 +40,30 @@ const mailFrom = () => process.env.MAIL_FROM || `"Bossa Nova" <${process.env.MAI
 
 export const verificarMail = async () => {
   if (!estaConfigurado()) {
-    throw new Error('Mail no configurado: faltan MAIL_USER / MAIL_PASS / MAIL_TO en el servidor');
+    throw new Error('Mail no configurado: faltan MAIL_USER / MAIL_PASS / MAIL_TO o BREVO_API_KEY en el servidor');
+  }
+
+if (MODO_API) {
+    const response = await fetch('https://api.brevo.com/v3/account', {
+      headers: { 'api-key': process.env.BREVO_API_KEY, accept: 'application/json' },
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!response.ok) {
+      throw new Error(`Brevo API HTTP ${response.status}`);
+    }
+    return {
+      via: 'api',
+      host: 'api.brevo.com',
+      port: 443,
+      user: process.env.BREVO_API_KEY ? `*${process.env.BREVO_API_KEY.slice(-4)}` : '(vacío)',
+      to: process.env.MAIL_TO,
+    };
   }
 
   const transporter = crearTransporter();
   await transporter.verify();
   return {
+    via: 'smtp',
     host: process.env.MAIL_HOST || 'smtp-relay.brevo.com',
     port: Number(process.env.MAIL_PORT || 587),
     user: process.env.MAIL_USER,
@@ -155,7 +178,52 @@ export const buildDatosCierre = ({ ventas, close, offset = 0, turno, totalDia })
   };
 };
 
+const parseDireccion = (raw) => {
+  const m = String(raw || '').match(/^(?:([^<]*?)\s*)?<([^>]+)>\s*$/);
+  if (m) return { name: m[1] || m[2], email: m[2] };
+  const email = String(raw || '').trim();
+  return { name: email, email };
+};
+
+const toDirecciones = (raw) =>
+  String(raw || '')
+    .split(/[;,]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(parseDireccion);
+
+const enviarViaApi = async ({ subject, text, html }) => {
+  const from = parseDireccion(process.env.MAIL_FROM || `"Bossa Nova" <${process.env.MAIL_USER}>`);
+  const destinos = toDirecciones(process.env.MAIL_TO);
+
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': process.env.BREVO_API_KEY,
+      'content-type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender: from,
+      to: destinos,
+      subject,
+      textContent: text,
+      htmlContent: html,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!response.ok) {
+    const cuerpo = await response.text().catch(() => '');
+    throw new Error(`Brevo API HTTP ${response.status}${cuerpo ? `: ${cuerpo.slice(0, 200)}` : ''}`);
+  }
+};
+
 const enviarCorreo = async ({ subject, text, html }) => {
+  if (MODO_API) {
+    await enviarViaApi({ subject, text, html });
+    return;
+  }
   const transporter = crearTransporter();
   await transporter.sendMail({
     from: mailFrom(),
@@ -179,7 +247,7 @@ export const enviarCierreDeCaja = async ({ ventas, close, offset, turno, totalDi
 
 export const enviarMailTest = async ({ offset = 0 } = {}) => {
   if (!estaConfigurado()) {
-    throw new Error('Mail no configurado: faltan MAIL_USER / MAIL_PASS / MAIL_TO en el .env');
+    throw new Error('Mail no configurado: faltan MAIL_USER / MAIL_PASS / MAIL_TO o BREVO_API_KEY en el .env');
   }
 
   const ventas = [{
