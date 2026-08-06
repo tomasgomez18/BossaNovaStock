@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import Swal from 'sweetalert2';
-import { getSales, getSalesStats, getMostSold, deleteSale, getDailyClose, getDailyCloses, deleteDailyClose, resendCloseMail } from '../../api/sales';
+import { getSales, getSalesStats, getMostSold, deleteSale, getDailyClose, getDailyCloses, deleteDailyClose, resendCloseMail, mailStatus, netProbe } from '../../api/sales';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
 
@@ -380,6 +380,55 @@ const Sales = () => {
     } finally {
       setResendingId(null);
     }
+  };
+
+  const handleMailDiagnostico = async () => {
+    Swal.fire({
+      title: 'Diagnosticando...',
+      html: 'Probando la conexión SMTP del servidor...',
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      background: '#171717',
+      color: '#fff',
+      didOpen: () => Swal.showLoading(),
+    });
+
+    const pruebas = [
+      ['mail-status', mailStatus()],
+      ['smtp.gmail.com:465', netProbe('smtp.gmail.com', 465)],
+      ['smtp.gmail.com:587', netProbe('smtp.gmail.com', 587)],
+      ['smtp-mail.outlook.com:587', netProbe('smtp-mail.outlook.com', 587)],
+    ];
+
+    const filas = [];
+    for (const [nombre, promesa] of pruebas) {
+      try {
+        const { data } = await promesa;
+        if (nombre === 'mail-status') {
+          filas.push(`<b>Config actual</b><br/>host: ${data.host} · port: ${data.port} · ip: ${data.ip}<br/>user: ${data.user} · to: ${data.to}`);
+          filas.push(`<b>mail-status</b>: ✅ ${data.message}`);
+        } else {
+          filas.push(`<b>${nombre}</b>: ${data.reachable ? '✅ ALCANZABLE' : `❌ ${data.error} (${data.ms}ms)`}`);
+        }
+      } catch (err) {
+        const d = err.response?.data;
+        if (nombre === 'mail-status') {
+          filas.push(`<b>Config actual</b><br/>host: ${d?.host ?? '?'} · port: ${d?.port ?? '?'}<br/>user: ${d?.user ?? '?'} · to: ${d?.to ?? '?'}`);
+          filas.push(`<b>mail-status</b>: ❌ ${d?.message || err.message}`);
+        } else {
+          filas.push(`<b>${nombre}</b>: ❌ ${d?.message || err.message}`);
+        }
+      }
+    }
+
+    Swal.fire({
+      title: 'Diagnóstico de mail',
+      html: `<div style="text-align:left;font-size:13px;line-height:1.7">${filas.join('<br/><br/>')}</div>`,
+      background: '#171717',
+      color: '#fff',
+      confirmButtonColor: '#22c55e',
+      confirmButtonText: 'OK',
+    });
   };
 
   useEffect(() => {
@@ -837,6 +886,14 @@ const Sales = () => {
                   {p.label}
                 </button>
               ))}
+              {user?.rol === 'admin' && (
+                <button
+                  onClick={handleMailDiagnostico}
+                  className="flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-medium text-sky-300 border border-sky-500/30 hover:bg-sky-500/10 transition-all"
+                >
+                  Diagnosticar mail
+                </button>
+              )}
             </div>
           </div>
 
