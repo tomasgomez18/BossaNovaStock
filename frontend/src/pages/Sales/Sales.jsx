@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import Swal from 'sweetalert2';
-import { getSales, getSalesStats, getMostSold, deleteSale, getDailyClose, getDailyCloses, deleteDailyClose, resendCloseMail, mailStatus, netProbe } from '../../api/sales';
+import { getSales, getSalesStats, getMostSold, deleteSale, getDailyClose, getDailyCloses, deleteDailyClose } from '../../api/sales';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
 
@@ -95,7 +95,6 @@ const Sales = () => {
   const [closesLoading, setClosesLoading] = useState(false);
 
   const [expandedId, setExpandedId] = useState(null);
-  const [resendingId, setResendingId] = useState(null);
   const [showCloseHint, setShowCloseHint] = useState(true);
 
   const fetchData = () => {
@@ -368,67 +367,6 @@ const Sales = () => {
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al eliminar cierre', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
     }
-  };
-
-  const handleResendMail = async (id) => {
-    setResendingId(id);
-    try {
-      await resendCloseMail(id, new Date().getTimezoneOffset());
-      Swal.fire({ icon: 'success', title: 'Mail reenviado', text: 'El correo del cierre fue reenviado correctamente.', background: '#171717', color: '#fff', confirmButtonColor: '#22c55e', confirmButtonText: 'OK' });
-    } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'No se pudo reenviar el mail.', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
-    } finally {
-      setResendingId(null);
-    }
-  };
-
-  const handleMailDiagnostico = async () => {
-    Swal.fire({
-      title: 'Diagnosticando...',
-      html: 'Probando la conexión SMTP del servidor...',
-      allowOutsideClick: false,
-      showConfirmButton: false,
-      background: '#171717',
-      color: '#fff',
-      didOpen: () => Swal.showLoading(),
-    });
-
-    const pruebas = [
-      ['mail-status', mailStatus()],
-      ['smtp.gmail.com:465', netProbe('smtp.gmail.com', 465)],
-      ['smtp.gmail.com:587', netProbe('smtp.gmail.com', 587)],
-      ['smtp-mail.outlook.com:587', netProbe('smtp-mail.outlook.com', 587)],
-    ];
-
-    const filas = [];
-    for (const [nombre, promesa] of pruebas) {
-      try {
-        const { data } = await promesa;
-        if (nombre === 'mail-status') {
-          filas.push(`<b>Config actual</b><br/>host: ${data.host} · port: ${data.port} · ip: ${data.ip}<br/>user: ${data.user} · to: ${data.to}`);
-          filas.push(`<b>mail-status</b>: ✅ ${data.message}`);
-        } else {
-          filas.push(`<b>${nombre}</b>: ${data.reachable ? '✅ ALCANZABLE' : `❌ ${data.error} (${data.ms}ms)`}`);
-        }
-      } catch (err) {
-        const d = err.response?.data;
-        if (nombre === 'mail-status') {
-          filas.push(`<b>Config actual</b><br/>host: ${d?.host ?? '?'} · port: ${d?.port ?? '?'}<br/>user: ${d?.user ?? '?'} · to: ${d?.to ?? '?'}`);
-          filas.push(`<b>mail-status</b>: ❌ ${d?.message || err.message}`);
-        } else {
-          filas.push(`<b>${nombre}</b>: ❌ ${d?.message || err.message}`);
-        }
-      }
-    }
-
-    Swal.fire({
-      title: 'Diagnóstico de mail',
-      html: `<div style="text-align:left;font-size:13px;line-height:1.7">${filas.join('<br/><br/>')}</div>`,
-      background: '#171717',
-      color: '#fff',
-      confirmButtonColor: '#22c55e',
-      confirmButtonText: 'OK',
-    });
   };
 
   useEffect(() => {
@@ -826,6 +764,12 @@ const Sales = () => {
               </button>
             </div>
           )}
+          <div className="mb-4 flex items-start gap-3 bg-red-500/10 border border-amber-900/30 rounded-xl px-4 py-3">
+            <p className="text-sm text-red-500 flex-1">
+              <span className="font-medium">Envío de mail en mantenimiento:</span>{' '}
+               Funcionalidad no disponible. Estamos trabajando en ella, próximamente estará disponible.
+            </p>
+          </div>
           <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 space-y-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -886,14 +830,6 @@ const Sales = () => {
                   {p.label}
                 </button>
               ))}
-              {user?.rol === 'admin' && (
-                <button
-                  onClick={handleMailDiagnostico}
-                  className="flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-medium text-sky-300 border border-sky-500/30 hover:bg-sky-500/10 transition-all"
-                >
-                  Diagnosticar mail
-                </button>
-              )}
             </div>
           </div>
 
@@ -972,13 +908,18 @@ const Sales = () => {
                             Ver
                           </button>
                           {!c.turnos && (
-                            <button
-                              onClick={() => handleResendMail(c._id)}
-                              disabled={resendingId === c._id}
-                              className="text-emerald-400 hover:text-emerald-300 text-xs border border-emerald-500/30 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              {resendingId === c._id ? 'Enviando...' : 'Reenviar'}
-                            </button>
+                            <span className="relative inline-block group">
+                              <button
+                                disabled
+                                className="text-emerald-400/40 text-xs border border-emerald-500/20 px-2 py-1 rounded-lg cursor-not-allowed"
+                              >
+                                Reenviar
+                              </button>
+                              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-neutral-800 border border-white/10 text-white text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl z-50">
+                                <span className="absolute left-1/2 -translate-x-1/2 top-full border-[5px] border-transparent border-t-neutral-800"></span>
+                                En mantenimiento
+                              </span>
+                            </span>
                           )}
                           {!c.turnos && user?.rol === 'admin' && (
                             <button
@@ -1056,13 +997,18 @@ const Sales = () => {
                         Ver
                       </button>
                       {!c.turnos && (
-                        <button
-                          onClick={() => handleResendMail(c._id)}
-                          disabled={resendingId === c._id}
-                          className="text-emerald-400 text-xs border border-emerald-500/30 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          {resendingId === c._id ? 'Enviando...' : 'Reenviar'}
-                        </button>
+                        <span className="relative inline-block group">
+                          <button
+                            disabled
+                            className="text-emerald-400/40 text-xs border border-emerald-500/20 px-2 py-1 rounded-lg cursor-not-allowed"
+                          >
+                            Reenviar
+                          </button>
+                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-neutral-800 border border-white/10 text-white text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl z-50">
+                            <span className="absolute left-1/2 -translate-x-1/2 top-full border-[5px] border-transparent border-t-neutral-800"></span>
+                            En mantenimiento
+                          </span>
+                        </span>
                       )}
                       {!c.turnos && user?.rol === 'admin' && (
                         <button

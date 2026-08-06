@@ -9,6 +9,3 @@ export const deleteSale = (id) => api.delete(`/sales/${id}`);
 export const getDailyClose = (params) => api.get('/sales/daily-close', { params });
 export const getDailyCloses = (params) => api.get('/sales/daily-closes', { params });
 export const deleteDailyClose = (id) => api.delete(`/sales/daily-closes/${id}`);
-export const resendCloseMail = (id, offset) => api.post(`/sales/daily-closes/${id}/resend-mail`, { offset });
-export const mailStatus = () => api.get('/sales/mail-status');
-export const netProbe = (host, port) => api.get('/sales/net-probe', { params: { host, port } });
