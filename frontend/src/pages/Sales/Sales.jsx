@@ -777,12 +777,6 @@ const Sales = () => {
               </button>
             </div>
           )}
-          <div className="mb-4 flex items-start gap-3 bg-red-500/10 border border-amber-900/30 rounded-xl px-4 py-3">
-            <p className="text-sm text-red-500 flex-1">
-              <span className="font-medium">Envío de mail en mantenimiento:</span>{' '}
-               Funcionalidad no disponible. Estamos trabajando en ella, próximamente estará disponible.
-            </p>
-          </div>
           <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-5 mb-4 space-y-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
