@@ -3,67 +3,99 @@
 @tailwind utilities;
 
 html {
-  background-color: #0a0a0a;
+  background-color: #000000;
+  color: #ffffff;
   overflow-x: hidden;
 }
 
 body {
   overflow-x: hidden;
+  color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, Roboto, 'Segoe UI', sans-serif;
 }
 
-@keyframes pageEnter {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+button {
+  -webkit-tap-highlight-color: transparent;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+::selection {
+  background: rgba(10, 132, 255, 0.35);
+}
+
+/* ---------- iOS animations ---------- */
+
+@keyframes iosAlertIn {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-@keyframes slideDown {
-  from { opacity: 0; max-height: 0; }
-  to { opacity: 1; max-height: 500px; }
+@keyframes iosSheetUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
-@keyframes modalIn {
-  from { opacity: 0; transform: scale(0.96) translateY(-10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-@keyframes rowIn {
-  from { opacity: 0; transform: translateX(-6px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes backdropIn {
+@keyframes iosSheetFade {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-.animate-pageEnter {
-  animation: pageEnter 0.3s ease-out;
+@keyframes iosModalIn {
+  from { opacity: 0; transform: scale(0.94) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.15s ease-out;
+@keyframes iosCenteredUp {
+  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.animate-slideDown {
-  animation: slideDown 0.25s ease-out;
+@keyframes iosToastIn {
+  from { opacity: 0; transform: translateY(-16px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.animate-modalIn {
-  animation: modalIn 0.2s ease-out;
+@keyframes iosPageEnter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-rowIn {
-  animation: rowIn 0.25s ease-out both;
+@keyframes iosFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.animate-backdropIn {
-  animation: backdropIn 0.15s ease-out;
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes iosRowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-ios-alert { animation: iosAlertIn 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.animate-ios-sheet-up { animation: iosSheetUp 0.35s cubic-bezier(0.32, 0.72, 0, 1); }
+.animate-ios-sheet-fade { animation: iosSheetFade 0.25s ease-out; }
+.animate-ios-modal { animation: iosModalIn 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.1); }
+.animate-ios-centered { animation: iosCenteredUp 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.1); }
+.animate-ios-toast { animation: iosToastIn 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.15); }
+.animate-ios-page { animation: iosPageEnter 0.25s ease-out; }
+.animate-ios-fade { animation: iosFadeIn 0.2s ease-out; }
+.animate-ios-row { animation: iosRowIn 0.3s ease-out both; }
+.animate-slideDown { animation: slideDown 0.2s ease-out both; }
+
+/* ---------- iOS components ---------- */
+
+@layer components {
+.ios-btn-press {
+    @apply transition-all duration-150 active:scale-[0.97] active:opacity-80;
+  }
+}
+
+/* ---------- Scrollbar dark iOS ---------- */
 
 ::-webkit-scrollbar {
   width: 6px;
@@ -75,19 +107,23 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(235, 235, 245, 0.15);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(235, 235, 245, 0.25);
 }
 
 html {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: rgba(235, 235, 245, 0.15) transparent;
 }
 
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
 }

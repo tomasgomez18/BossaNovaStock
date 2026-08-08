@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import Swal from 'sweetalert2';
 import {
   getSuppliers,
   createSupplier,
@@ -8,22 +7,15 @@ import {
 } from '../../api/suppliers';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
+import { useIosAlert } from '../../components/ui/AlertProvider';
+import IosButton from '../../components/ui/IosButton';
+import IosModal from '../../components/ui/IosModal';
+import { IosField, IosInput } from '../../components/ui/IosForm';
+import { IconPlus, IconAlert } from '../../components/ui/icons';
 
 const Suppliers = () => {
   const { user } = useAuth();
-
-  if (!user || user.rol !== 'admin') {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <svg className="w-12 h-12 mx-auto text-white/20 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
-          <p className="text-white/40 text-sm">Solo el administrador puede gestionar proveedores</p>
-        </div>
-      </div>
-    );
-  }
+  const { show: alert, confirm, toast } = useIosAlert();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -58,6 +50,19 @@ const Suppliers = () => {
     setShowForm(false);
   };
 
+  if (user && user.rol !== 'admin') {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto bg-ios-surface rounded-full flex items-center justify-center mb-4 border border-ios-separator/40">
+            <IconAlert className="w-7 h-7 text-ios-tertiary" strokeWidth={1.5} />
+          </div>
+          <p className="text-ios-tertiary text-sm">Solo el administrador puede gestionar proveedores</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -68,9 +73,9 @@ const Suppliers = () => {
       }
       resetForm();
       fetchSuppliers();
-      Swal.fire({ icon: 'success', title: 'Proveedor guardado', timer: 1500, showConfirmButton: false, background: '#171717', color: '#fff' });
+      toast({ message: 'Proveedor guardado' });
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al guardar proveedor', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'error', title: 'Error', message: err.response?.data?.message || 'Error al guardar proveedor' });
     }
   };
 
@@ -86,98 +91,86 @@ const Suppliers = () => {
   };
 
   const handleDelete = async (id) => {
-    const confirmed = await Swal.fire({ icon: 'question', title: '¿Eliminar este proveedor?', text: 'Esta acción no se puede deshacer', showCancelButton: true, confirmButtonText: 'Eliminar', cancelButtonText: 'Cancelar', background: '#171717', color: '#fff', confirmButtonColor: '#ef4444' });
-    if (!confirmed.isConfirmed) return;
+    const confirmed = await confirm({
+      icon: 'warning',
+      title: '¿Eliminar este proveedor?',
+      message: 'Esta acción no se puede deshacer',
+      confirmText: 'Eliminar',
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await deleteSupplier(id);
       fetchSuppliers();
-      Swal.fire({ icon: 'success', title: 'Proveedor eliminado', timer: 1500, showConfirmButton: false, background: '#171717', color: '#fff' });
-    } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: 'Error al eliminar proveedor', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      toast({ message: 'Proveedor eliminado' });
+    } catch {
+      alert({ icon: 'error', title: 'Error', message: 'Error al eliminar proveedor' });
     }
   };
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-white">Proveedores</h1>
-        <button
+        <h1 className="text-[28px] font-bold text-ios-label tracking-tight">Proveedores</h1>
+        <IosButton
           onClick={() => {
             resetForm();
             setShowForm(true);
           }}
-          className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border border-white/10 px-4 py-2 rounded-lg transition-all text-sm"
+          className="flex-1 sm:flex-none"
         >
-          + Nuevo Proveedor
-        </button>
+          <IconPlus className="w-4 h-4" />
+          Nuevo Proveedor
+        </IosButton>
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto animate-modalIn">
-            <h2 className="text-xl font-bold text-white mb-4">
-              {editing ? 'Editar Proveedor' : 'Nuevo Proveedor'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Nombre</label>
-                <input
-                  type="text"
-                  required
-                  value={form.nombre}
-                  onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Teléfono</label>
-                <input
-                  type="text"
-                  value={form.telefono}
-                  onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Email</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Dirección</label>
-                <input
-                  type="text"
-                  value={form.direccion}
-                  onChange={(e) => setForm({ ...form, direccion: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="px-4 py-2 text-white/50 border border-white/10 rounded-lg text-sm hover:bg-white/5 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-lg text-sm transition-all"
-                >
-                  {editing ? 'Actualizar' : 'Crear'}
-                </button>
-              </div>
-            </form>
+      <IosModal
+        open={showForm}
+        onClose={resetForm}
+        title={editing ? 'Editar Proveedor' : 'Nuevo Proveedor'}
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <IosField label="Nombre" required>
+            <IosInput
+              type="text"
+              required
+              value={form.nombre}
+              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+            />
+          </IosField>
+          <IosField label="Teléfono">
+            <IosInput
+              type="text"
+              value={form.telefono}
+              onChange={(e) => setForm({ ...form, telefono: e.target.value })}
+            />
+          </IosField>
+          <IosField label="Email">
+            <IosInput
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </IosField>
+          <IosField label="Dirección">
+            <IosInput
+              type="text"
+              value={form.direccion}
+              onChange={(e) => setForm({ ...form, direccion: e.target.value })}
+            />
+          </IosField>
+          <div className="flex justify-end gap-3 pt-2">
+            <IosButton type="button" variant="gray" onClick={resetForm}>
+              Cancelar
+            </IosButton>
+            <IosButton type="submit">{editing ? 'Actualizar' : 'Crear'}</IosButton>
           </div>
-        </div>
-      )}
+        </form>
+      </IosModal>
 
       {error && (
-        <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+        <div className="mb-4 px-4 py-3 bg-ios-red/10 border border-ios-red/25 rounded-ios-control text-ios-red text-sm font-medium">
           {error}
         </div>
       )}
@@ -185,44 +178,46 @@ const Suppliers = () => {
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <div className="hidden md:block bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-x-auto">
+        <div className="hidden md:block bg-ios-surface border border-ios-separator/30 rounded-3xl overflow-hidden shadow-ios-card">
           <table className="w-full text-sm">
-            <thead className="bg-white/5">
+            <thead>
               <tr>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Nombre</th>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Teléfono</th>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Email</th>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Dirección</th>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Acciones</th>
+                <th className="text-left px-5 py-3 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Nombre</th>
+                <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Teléfono</th>
+                <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Email</th>
+                <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Dirección</th>
+                <th className="text-right px-5 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {suppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-8 text-white/30">
+                  <td colSpan={5} className="text-center py-10 text-ios-tertiary text-sm">
                     No hay proveedores
                   </td>
                 </tr>
               ) : (
                 suppliers.map((sup) => (
-                  <tr key={sup._id} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
-                    <td className="px-4 py-3 font-medium text-white">{sup.nombre}</td>
-                    <td className="px-4 py-3 text-white/50">{sup.telefono || '—'}</td>
-                    <td className="px-4 py-3 text-white/50">{sup.email || '—'}</td>
-                    <td className="px-4 py-3 text-white/50">{sup.direccion || '—'}</td>
-                    <td className="px-4 py-3 flex gap-2">
-                      <button
-                        onClick={() => handleEdit(sup)}
-                        className="text-blue-400 hover:text-blue-300 font-medium text-sm"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDelete(sup._id)}
-                        className="text-red-400 hover:text-red-300 font-medium text-sm"
-                      >
-                        Eliminar
-                      </button>
+                  <tr key={sup._id} className="border-t border-ios-separator/30 hover:bg-white/[0.03] transition-colors">
+                    <td className="px-5 py-3.5 font-semibold text-ios-label">{sup.nombre}</td>
+                    <td className="px-4 py-3.5 text-ios-secondary">{sup.telefono || '—'}</td>
+                    <td className="px-4 py-3.5 text-ios-secondary">{sup.email || '—'}</td>
+                    <td className="px-4 py-3.5 text-ios-secondary">{sup.direccion || '—'}</td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(sup)}
+                          className="text-ios-tint hover:text-ios-tint/80 font-medium text-sm"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDelete(sup._id)}
+                          className="text-ios-red hover:text-ios-red/80 font-medium text-sm"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -233,42 +228,42 @@ const Suppliers = () => {
       )}
 
       {!loading && (
-        <div className="md:hidden space-y-3">
+        <div className="md:hidden space-y-2.5">
           {suppliers.length === 0 ? (
-            <div className="text-center py-8 text-white/30 text-sm">
+            <div className="text-center py-10 text-ios-tertiary text-sm">
               No hay proveedores
             </div>
           ) : (
             suppliers.map((sup) => (
-              <div key={sup._id} className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-4">
+              <div key={sup._id} className="bg-ios-surface border border-ios-separator/30 rounded-3xl p-4 shadow-ios-card">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-medium text-white">{sup.nombre}</p>
-                    <p className="text-xs text-white/30 mt-0.5 truncate">{sup.email || '—'}</p>
+                    <p className="font-semibold text-ios-label">{sup.nombre}</p>
+                    <p className="text-xs text-ios-tertiary mt-0.5 truncate">{sup.email || '—'}</p>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button
                       onClick={() => handleEdit(sup)}
-                      className="text-blue-400 text-xs border border-blue-500/30 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-all"
+                      className="text-ios-tint text-xs border border-ios-tint/30 px-2.5 py-1 rounded-ios-pill hover:bg-ios-tint/10 transition-all font-semibold"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => handleDelete(sup._id)}
-                      className="text-red-400 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
+                      className="text-ios-red text-xs border border-ios-red/30 px-2.5 py-1 rounded-ios-pill hover:bg-ios-red/10 transition-all font-semibold"
                     >
                       Eliminar
                     </button>
                   </div>
                 </div>
-                <div className="mt-3 pt-3 border-t border-white/5 space-y-1 text-sm">
+                <div className="mt-3 pt-3 border-t border-ios-separator/40 space-y-1.5 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-white/40 text-xs">Teléfono</span>
-                    <span className="text-white/70">{sup.telefono || '—'}</span>
+                    <span className="text-ios-tertiary text-xs">Teléfono</span>
+                    <span className="text-ios-secondary">{sup.telefono || '—'}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-white/40 text-xs">Dirección</span>
-                    <span className="text-white/70 text-right">{sup.direccion || '—'}</span>
+                    <span className="text-ios-tertiary text-xs">Dirección</span>
+                    <span className="text-ios-secondary text-right">{sup.direccion || '—'}</span>
                   </div>
                 </div>
               </div>

@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import IosButton from '../ui/IosButton';
+import { IconPlus, IconX } from '../ui/icons';
 
 const stockPorColor = (colores, variants) => {
   if (!colores || colores.length === 0) return null;
@@ -118,9 +120,14 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
   };
 
   const campoCls = (campo) =>
-    `w-full px-3 py-2.5 bg-white/[0.07] border rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm ${
-      errores[campo] ? 'border-red-500/50' : 'border-white/10'
+    `w-full px-3.5 py-2.5 bg-ios-surface2 rounded-ios-control text-ios-label placeholder:text-ios-tertiary focus:outline-none focus:ring-2 focus:ring-ios-tint/40 transition-all text-sm ${
+      errores[campo] ? 'ring-2 ring-ios-red/60' : ''
     }`;
+
+  const labelCls = 'block text-[13px] text-ios-secondary font-medium mb-1.5';
+
+  const errText = (campo) =>
+    errores[campo] && <p className="text-ios-red text-xs mt-1">{errores[campo]}</p>;
 
   const isSubmitting = externalSubmitting;
 
@@ -128,8 +135,8 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="col-span-1 sm:col-span-2">
-          <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
-            Nombre <span className="text-red-400">*</span>
+          <label className={labelCls}>
+            Nombre <span className="text-ios-red">*</span>
           </label>
           <input
             type="text"
@@ -138,13 +145,11 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
             onChange={(e) => setForm({ ...form, nombre: e.target.value })}
             className={campoCls('nombre')}
           />
-          {errores.nombre && (
-            <p className="text-red-400 text-xs mt-1">{errores.nombre}</p>
-          )}
+          {errText('nombre')}
         </div>
         <div>
-          <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
-            Precio <span className="text-red-400">*</span>
+          <label className={labelCls}>
+            Precio <span className="text-ios-red">*</span>
           </label>
           <input
             type="number"
@@ -155,14 +160,10 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
             onChange={(e) => setForm({ ...form, precio: e.target.value })}
             className={campoCls('precio')}
           />
-          {errores.precio && (
-            <p className="text-red-400 text-xs mt-1">{errores.precio}</p>
-          )}
+          {errText('precio')}
         </div>
         <div>
-          <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
-            Stock Mínimo
-          </label>
+          <label className={labelCls}>Stock Mínimo</label>
           <input
             type="number"
             required
@@ -171,19 +172,15 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
             onChange={(e) => setForm({ ...form, stockMinimo: e.target.value })}
             className={campoCls('stockMinimo')}
           />
-          <p className="text-white/20 text-[10px] mt-1">
+          <p className="text-ios-tertiary text-[11px] mt-1">
             Cuando el stock total baje de este número, se mostrará una alerta
           </p>
-          {errores.stockMinimo && (
-            <p className="text-red-400 text-xs mt-1">{errores.stockMinimo}</p>
-          )}
+          {errText('stockMinimo')}
         </div>
       </div>
 
       <div>
-        <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
-          Colores del producto
-        </label>
+        <label className={labelCls}>Colores del producto</label>
         <div className="flex items-center gap-2 mb-2">
           <input
             type="text"
@@ -191,16 +188,12 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
             onChange={(e) => setNewColor(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddColor())}
             placeholder="Ej: Azul, Rojo..."
-            className="flex-1 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
+            className="flex-1 px-3.5 py-2.5 bg-ios-surface rounded-ios-card text-ios-label placeholder:text-ios-tertiary focus:outline-none focus:ring-2 focus:ring-ios-tint/40 transition-all text-sm"
           />
-          <button
-            type="button"
-            onClick={handleAddColor}
-            disabled={!newColor.trim()}
-            className="text-xs text-green-400 bg-green-500/10 border border-green-500/30 px-3 py-2 rounded-lg hover:bg-green-500/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            + Agregar
-          </button>
+          <IosButton type="button" variant="tinted" size="sm" onClick={handleAddColor} disabled={!newColor.trim()}>
+            <IconPlus className="w-3.5 h-3.5" />
+            Agregar
+          </IosButton>
         </div>
         {form.colores.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-3">
@@ -209,45 +202,39 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
               return (
                 <span
                   key={c}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-white/70"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-ios-surface2 border border-ios-separator/40 text-ios-secondary"
                 >
                   {c}
-                  <span className="text-white/30">({count})</span>
+                  <span className="text-ios-tertiary">({count})</span>
                   <button
                     type="button"
                     onClick={() => handleRemoveColor(c)}
-                    className="text-white/30 hover:text-red-400 transition-colors"
+                    className="text-ios-tertiary hover:text-ios-red transition-colors"
                   >
-                    ✕
+                    <IconX className="w-3 h-3" />
                   </button>
                 </span>
               );
             })}
           </div>
         )}
-        {errores.colores && (
-          <p className="text-red-400 text-xs mb-2">{errores.colores}</p>
-        )}
+        {errText('colores')}
       </div>
 
       {form.colores.length > 0 && (
         <div>
-          <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-2">
-            Variantes por color
-          </label>
-          {errores.variants && (
-            <p className="text-red-400 text-xs mb-2">{errores.variants}</p>
-          )}
-          <div className="space-y-4">
+          <label className={`${labelCls} mb-2`}>Variantes por color</label>
+          {errText('variants')}
+          <div className="space-y-3">
             {form.colores.map((color) => {
               const idxs = form.variants
                 .map((v, i) => (v.color === color ? i : -1))
                 .filter((i) => i !== -1);
               return (
-                <div key={color} className="bg-white/[0.03] border border-white/5 rounded-lg p-3">
-                  <p className="text-sm font-semibold text-white mb-2">{color}</p>
+                <div key={color} className="bg-ios-surface rounded-ios-card border border-ios-separator/30 p-3">
+                  <p className="text-sm font-semibold text-ios-label mb-2">{color}</p>
                   {idxs.length === 0 && (
-                    <p className="text-xs text-white/30 mb-2">
+                    <p className="text-xs text-ios-tertiary mb-2">
                       Sin variantes aún — agregue talle y cantidad
                     </p>
                   )}
@@ -259,7 +246,7 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
                           placeholder="Talle"
                           value={form.variants[i].talle}
                           onChange={(e) => updateVariant(i, 'talle', e.target.value)}
-                          className="flex-1 sm:flex-none w-24 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
+                          className="flex-1 sm:flex-none w-24 px-3 py-2 bg-ios-surface rounded-ios-card text-ios-label placeholder:text-ios-tertiary focus:outline-none focus:ring-2 focus:ring-ios-tint/40 transition-all text-sm"
                         />
                         <input
                           type="number"
@@ -267,16 +254,14 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
                           placeholder="Cantidad"
                           value={form.variants[i].cantidad}
                           onChange={(e) => updateVariant(i, 'cantidad', e.target.value)}
-                          className="flex-1 sm:flex-none w-24 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
+                          className="flex-1 sm:flex-none w-24 px-3 py-2 bg-ios-surface rounded-ios-card text-ios-label placeholder:text-ios-tertiary focus:outline-none focus:ring-2 focus:ring-ios-tint/40 transition-all text-sm"
                         />
                         <button
                           type="button"
                           onClick={() => removeVariant(i)}
-                          className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                          className="p-2 text-ios-red hover:bg-ios-red/10 rounded-lg transition-all"
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                          <IconX className="w-4 h-4" />
                         </button>
                       </div>
                     ))}
@@ -284,7 +269,7 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
                   <button
                     type="button"
                     onClick={() => addVariantToColor(color)}
-                    className="mt-2 text-xs text-green-400/80 hover:text-green-400 transition-colors"
+                    className="mt-2 text-xs text-ios-green hover:text-ios-green/80 transition-colors font-medium"
                   >
                     + Agregar talle
                   </button>
@@ -294,16 +279,16 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3 text-xs">
-            <span className="text-white/50">
-              Total: <span className="text-white font-semibold">{totalCantidad}</span> unidades
+            <span className="text-ios-secondary">
+              Total: <span className="text-ios-label font-semibold">{totalCantidad}</span> unidades
             </span>
             {stockResumen && (
-              <span className="text-white/30">
+              <span className="text-ios-tertiary">
                 Por color:{' '}
                 {stockResumen
                   .filter((s) => s.stock > 0)
                   .map((s) => (
-                    <span key={s.color} className="text-white/60">
+                    <span key={s.color} className="text-ios-secondary">
                       {s.color}: {s.stock}{' '}
                     </span>
                   ))}
@@ -314,15 +299,15 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
       )}
 
       {form.colores.length === 0 && (
-        <div className="py-4 text-center text-white/30 text-xs border border-dashed border-white/10 rounded-lg">
+        <div className="py-4 text-center text-ios-tertiary text-xs border border-dashed border-ios-separator/60 rounded-ios-card">
           Agregue al menos un color para empezar a cargar variantes
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
-            Categoría <span className="text-red-400">*</span>
+          <label className={labelCls}>
+            Categoría <span className="text-ios-red">*</span>
           </label>
           <input
             type="text"
@@ -332,44 +317,35 @@ const ProductForm = ({ initial, onSubmit, onCancel, isSubmitting: externalSubmit
             className={campoCls('categoria')}
             placeholder="Ej: Pantalones, Remeras..."
           />
-          {errores.categoria && (
-            <p className="text-red-400 text-xs mt-1">{errores.categoria}</p>
-          )}
+          {errText('categoria')}
         </div>
         <div>
-          <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Proveedor</label>
+          <label className={labelCls}>Proveedor</label>
           <input
             type="text"
             value={form.proveedor}
             onChange={(e) => setForm({ ...form, proveedor: e.target.value })}
-            className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
+            className={campoCls('proveedor')}
             placeholder="Nombre del proveedor"
           />
         </div>
       </div>
 
       <div className="flex justify-end gap-3 pt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={isSubmitting}
-          className="px-4 py-2 text-white/50 border border-white/10 rounded-lg text-sm hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-        >
+        <IosButton type="button" variant="gray" onClick={onCancel} disabled={isSubmitting}>
           Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-lg text-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          {isSubmitting && (
-            <svg className="animate-spin h-4 w-4 text-white/70" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          )}
-          {isSubmitting ? 'Guardando...' : initial ? 'Actualizar Producto' : 'Crear Producto'}
-        </button>
+        </IosButton>
+        <IosButton type="submit" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <svg className="animate-spin h-4 w-4 text-white/70" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Guardando...
+            </>
+          ) : initial ? 'Actualizar Producto' : 'Crear Producto'}
+        </IosButton>
       </div>
     </form>
   );

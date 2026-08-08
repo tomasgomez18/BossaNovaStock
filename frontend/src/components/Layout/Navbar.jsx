@@ -1,48 +1,43 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { IconLogout, IconChevronDown } from '../ui/icons';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
 
   return (
-    <header className="bg-neutral-900/30 backdrop-blur-xl border-b border-white/5 px-6 py-3 flex items-center justify-between z-10">
-      <div className="flex items-center gap-3">
-        <div className="w-2 h-2 rounded-full " />
-      </div>
+    <header className="bg-ios-surface/60 backdrop-blur-2xl border-b border-ios-separator/40 px-4 sm:px-6 py-2.5 flex items-center justify-between z-10 shrink-0">
       {user && (
-        <div className="relative">
+        <div className="relative ml-auto">
           <button
             onClick={() => setShowDropdown(!showDropdown)}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all"
+            className="flex items-center gap-2.5 px-2 py-1.5 rounded-ios-pill transition-all hover:bg-white/5 active:bg-white/10"
           >
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-medium text-white">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-ios-tint to-blue-600 flex items-center justify-center text-sm font-bold text-white shadow-[0_3px_10px_rgba(10,132,255,0.4)] ring-2 ring-white/10">
               {user.nombre?.charAt(0).toUpperCase()}
             </div>
             <div className="text-left hidden sm:block">
-              <p className="text-sm font-medium text-white">{user.nombre}</p>
-              <p className="text-[11px] text-white/40">{user.email}</p>
+              <p className="text-[14px] font-semibold text-ios-label leading-tight">{user.nombre}</p>
+              <p className="text-[11px] text-ios-tertiary">{user.email}</p>
             </div>
-            <svg className={`w-4 h-4 text-white/40 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <IconChevronDown className={`w-3.5 h-3.5 text-ios-tertiary transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''}`} />
           </button>
 
           {showDropdown && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
-              <div className="absolute right-0 top-full mt-2 z-50 w-56 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 py-1.5">
-                <div className="px-4 py-2 border-b border-white/5">
-                  <p className="text-xs text-white/40">Conectado como</p>
-                  <p className="text-sm font-medium text-white">{user.email}</p>
+              <div className="absolute right-0 top-full mt-1.5 z-50 w-64 bg-ios-surface/95 backdrop-blur-2xl border border-ios-separator/40 rounded-2xl shadow-ios-alert overflow-hidden p-1.5 animate-ios-modal">
+                <div className="px-4 py-3">
+                  <p className="text-[11px] text-ios-tertiary uppercase tracking-wide font-medium">Conectado como</p>
+                  <p className="text-[13px] font-semibold text-ios-label mt-0.5 truncate">{user.email}</p>
                 </div>
+                <div className="h-px bg-ios-separator/40 my-1" />
                 <button
                   onClick={logout}
-                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-white/5 transition-colors"
+                  className="flex items-center gap-2.5 w-full px-3 py-2.5 text-[15px] text-ios-red rounded-xl hover:bg-ios-red/10 transition-colors font-medium"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
+                  <IconLogout className="w-[18px] h-[18px]" strokeWidth={1.8} />
                   Cerrar Sesión
                 </button>
               </div>

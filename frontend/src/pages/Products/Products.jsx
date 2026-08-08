@@ -1,5 +1,4 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import Swal from 'sweetalert2';
 import {
   getProducts,
   createProduct,
@@ -14,6 +13,13 @@ import { createSale } from '../../api/sales';
 import ProductForm from '../../components/ProductForm/ProductForm';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
+import { useIosAlert } from '../../components/ui/AlertProvider';
+import IosButton from '../../components/ui/IosButton';
+import IosModal from '../../components/ui/IosModal';
+import IosSearch from '../../components/ui/IosSearch';
+import IosToggle from '../../components/ui/IosToggle';
+import { IosField, IosInput, IosSelect } from '../../components/ui/IosForm';
+import { IconCart, IconPlus, IconChevronDown, IconAlert, IconTrash, IconX, IconPencil, IconList, IconBox } from '../../components/ui/icons';
 
 const variantLabel = (v) => {
   const parts = [];
@@ -29,7 +35,6 @@ const variantShortLabel = (v) => {
   if (v.color) parts.push(v.color);
   return parts.join(' / ') || '—';
 };
-
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +98,7 @@ const Products = () => {
   const [addStockVariantIdx, setAddStockVariantIdx] = useState('');
 
   const { user } = useAuth();
+  const { show: alert, confirm, toast } = useIosAlert();
 
   const [lowStock, setLowStock] = useState([]);
   const [lowStockOpen, setLowStockOpen] = useState(false);
@@ -142,9 +148,9 @@ const Products = () => {
       setShowForm(false);
       setEditing(null);
       fetchData();
-      Swal.fire({ icon: 'success', title: 'Producto guardado', timer: 1500, showConfirmButton: false, background: '#171717', color: '#fff' });
+      toast({ message: 'Producto guardado' });
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al guardar producto', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'error', title: 'Error', message: err.response?.data?.message || 'Error al guardar producto' });
     } finally {
       setIsSubmitting(false);
     }
@@ -156,14 +162,20 @@ const Products = () => {
   };
 
   const handleDelete = async (id) => {
-    const confirmed = await Swal.fire({ icon: 'question', title: '¿Eliminar este producto?', text: 'Esta acción no se puede deshacer', showCancelButton: true, confirmButtonText: 'Eliminar', cancelButtonText: 'Cancelar', background: '#171717', color: '#fff', confirmButtonColor: '#ef4444' });
-    if (!confirmed.isConfirmed) return;
+    const confirmed = await confirm({
+      icon: 'warning',
+      title: '¿Eliminar este producto?',
+      message: 'Esta acción no se puede deshacer',
+      confirmText: 'Eliminar',
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await deleteProduct(id);
       fetchData();
-      Swal.fire({ icon: 'success', title: 'Producto eliminado', timer: 1500, showConfirmButton: false, background: '#171717', color: '#fff' });
+      toast({ message: 'Producto eliminado' });
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: 'Error al eliminar producto', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'error', title: 'Error', message: 'Error al eliminar producto' });
     }
   };
 
@@ -177,16 +189,16 @@ const Products = () => {
   const confirmQuickAdd = () => {
     const cantidad = Number(qaCantidad);
     if (cantidad < 1) {
-      Swal.fire({ icon: 'warning', title: 'Cantidad inválida', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'warning', title: 'Cantidad inválida' });
       return;
     }
     if (quickAdd.variants?.length > 0 && qaVariantIdx === '') {
-      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe seleccionar una variante', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'warning', title: 'Campo requerido', message: 'Debe seleccionar una variante' });
       return;
     }
     const precio = Number(qaPrecio);
     if (precio < 0) {
-      Swal.fire({ icon: 'warning', title: 'Precio inválido', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'warning', title: 'Precio inválido' });
       return;
     }
     const variant = quickAdd.variants[Number(qaVariantIdx)];
@@ -199,7 +211,7 @@ const Products = () => {
       color: variant?.color || '',
     }]);
     setQuickAdd(null);
-    Swal.fire({ icon: 'success', title: 'Agregado al carrito', timer: 1000, showConfirmButton: false, background: '#171717', color: '#fff' });
+    toast({ message: 'Agregado al carrito', duration: 1400 });
   };
 
   const removeFromCart = (idx) => {
@@ -212,7 +224,7 @@ const Products = () => {
 
   const openCart = () => {
     if (cart.length === 0) {
-      Swal.fire({ icon: 'info', title: 'Carrito vacío', text: 'Agregue productos desde el menú de cada producto', background: '#171717', color: '#fff', confirmButtonColor: '#22c55e', confirmButtonText: 'OK' });
+      alert({ icon: 'info', title: 'Carrito vacío', message: 'Agregue productos desde el menú de cada producto' });
       return;
     }
     setSellEmpleado('');
@@ -226,11 +238,11 @@ const Products = () => {
 
   const confirmSale = async () => {
     if (!sellEmpleado.trim()) {
-      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe ingresar el nombre del empleado', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'warning', title: 'Campo requerido', message: 'Debe ingresar el nombre del empleado' });
       return;
     }
     if (sellSplit && Math.abs(sellMonto1 + sellMonto2Num - finalTotal) > 0.01) {
-      Swal.fire({ icon: 'warning', title: 'Montos incorrectos', text: 'La suma de los montos debe coincidir con el total', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'warning', title: 'Montos incorrectos', message: 'La suma de los montos debe coincidir con el total' });
       return;
     }
     try {
@@ -246,9 +258,9 @@ const Products = () => {
       setCart([]);
       setShowCart(false);
       fetchData();
-      Swal.fire({ icon: 'success', title: 'Venta registrada', timer: 1500, showConfirmButton: false, background: '#171717', color: '#fff' });
+      toast({ message: 'Venta registrada' });
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al vender', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'error', title: 'Error', message: err.response?.data?.message || 'Error al vender' });
     }
   };
 
@@ -260,7 +272,7 @@ const Products = () => {
 
   const confirmAddStock = async () => {
     if (addStockModal.variants?.length > 0 && addStockVariantIdx === '') {
-      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe seleccionar una variante', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'warning', title: 'Campo requerido', message: 'Debe seleccionar una variante' });
       return;
     }
     const variant = addStockModal.variants[Number(addStockVariantIdx)];
@@ -268,9 +280,9 @@ const Products = () => {
       await addStock(addStockModal._id, { cantidad: Number(addStockCantidad), talle: variant?.talle || '', color: variant?.color || '' });
       setAddStockModal(null);
       fetchData();
-      Swal.fire({ icon: 'success', title: 'Stock actualizado', timer: 1500, showConfirmButton: false, background: '#171717', color: '#fff' });
+      toast({ message: 'Stock actualizado' });
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al agregar stock', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'error', title: 'Error', message: err.response?.data?.message || 'Error al agregar stock' });
     }
   };
 
@@ -292,15 +304,15 @@ const Products = () => {
   const confirmReturn = async () => {
     const motivoFinal = getReturnMotivo();
     if (!motivoFinal) {
-      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe ingresar un motivo', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'warning', title: 'Campo requerido', message: 'Debe ingresar un motivo' });
       return;
     }
     if (returnModal.variants?.length > 0 && returnVariantIdx === '') {
-      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe seleccionar la variante a devolver', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'warning', title: 'Campo requerido', message: 'Debe seleccionar la variante a devolver' });
       return;
     }
     if (exchangeTarget?.variants?.length > 0 && exchangeVariantIdx === '') {
-      Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Debe seleccionar la variante del producto nuevo', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'warning', title: 'Campo requerido', message: 'Debe seleccionar la variante del producto nuevo' });
       return;
     }
     const retVariant = returnModal.variants?.[Number(returnVariantIdx)];
@@ -329,9 +341,9 @@ const Products = () => {
       }
       setReturnModal(null);
       fetchData();
-      Swal.fire({ icon: 'success', title: exchangeTarget ? 'Cambio registrado' : 'Devolución registrada', timer: 1500, showConfirmButton: false, background: '#171717', color: '#fff' });
+      toast({ message: exchangeTarget ? 'Cambio registrado' : 'Devolución registrada' });
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al registrar', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({ icon: 'error', title: 'Error', message: err.response?.data?.message || 'Error al registrar' });
     }
   };
 
@@ -349,67 +361,71 @@ const Products = () => {
   const renderVariantSelect = (variants, value, onChange, label = 'Variante') => {
     if (!variants?.length) return null;
     return (
-      <div className="mb-4">
-        <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">{label} <span className="text-red-400">*</span></label>
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
-        >
-          <option value="" className="bg-neutral-900">Seleccionar...</option>
+      <IosField label={label} required>
+        <IosSelect value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="" className="bg-ios-surface2">Seleccionar...</option>
           {variants.map((v, i) => (
-            <option key={i} value={String(i)} className="bg-neutral-900">{variantLabel(v)}</option>
+            <option key={i} value={String(i)} className="bg-ios-surface2">{variantLabel(v)}</option>
           ))}
-        </select>
-      </div>
+        </IosSelect>
+      </IosField>
     );
+  };
+
+  const metodos = [
+    { key: 'efectivo', label: 'Efectivo', activeCls: 'bg-ios-green/15 text-ios-green border-ios-green/30' },
+    { key: 'transferencia', label: 'Transferencia', activeCls: 'bg-ios-tint/15 text-ios-tint border-ios-tint/30' },
+    { key: 'tarjeta', label: 'Tarjeta', activeCls: 'bg-ios-purple/15 text-ios-purple border-ios-purple/30' },
+  ];
+
+  const handleDropdownAction = (action) => {
+    const p = dropdown.product;
+    setDropdown({ product: null, x: 0, y: 0 });
+    if (action === 'carrito') openQuickAdd(p);
+    else if (action === 'stock') openAddStock(p);
+    else if (action === 'cambio') openReturn(p);
+    else if (action === 'editar') handleEdit(p);
+    else if (action === 'eliminar') handleDelete(p._id);
   };
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-white">Productos</h1>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <button
-            onClick={openCart}
-            className="relative flex-1 sm:flex-none bg-amber-500/20 text-amber-400 border border-amber-500/30 px-4 py-2 rounded-lg transition-all text-sm hover:bg-amber-500/30"
-          >
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <h1 className="text-[28px] font-bold text-ios-label tracking-tight">Productos</h1>
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <IosButton variant="tinted" onClick={openCart} className="flex-1 sm:flex-none relative">
+            <IconCart className="w-[18px] h-[18px]" />
             Carrito
             {cart.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-amber-500 text-black text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 bg-ios-tint text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-[0_2px_6px_rgba(10,132,255,0.5)]">
                 {cart.length}
               </span>
             )}
-          </button>
+          </IosButton>
           {user?.rol === 'admin' && (
-            <button
-              onClick={openCreate}
-              className="flex-1 sm:flex-none bg-white/10 hover:bg-white/20 text-white border border-white/10 px-4 py-2 rounded-lg transition-all text-sm"
-            >
-              + Nuevo Producto
-            </button>
+            <IosButton variant="primary" onClick={openCreate} className="flex-1 sm:flex-none">
+              <IconPlus className="w-4 h-4" />
+              Nuevo Producto
+            </IosButton>
           )}
         </div>
       </div>
 
       <div className="mb-4 flex items-center gap-3 flex-wrap">
-        <input
-          type="text"
-          placeholder="Buscar por nombre o categoria..."
+        <IosSearch
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full md:w-96 px-4 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.10] transition-all text-sm"
+          onChange={setSearch}
+          placeholder="Buscar por nombre o categoría..."
+          className="w-full md:w-96"
         />
         {lowStock.length > 0 && (
           <div className="relative shrink-0">
             <button
               onClick={() => setLowStockOpen(!lowStockOpen)}
-              className="flex items-center gap-2 px-3 py-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400 hover:bg-red-500/20 transition-all"
+              className="ios-btn-press flex items-center gap-2 px-3.5 py-2 bg-ios-red/10 border border-ios-red/25 rounded-ios-pill text-sm text-ios-red font-semibold hover:bg-ios-red/15 transition-all"
             >
-              <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              <span className="text-xs font-medium whitespace-nowrap">
+              <IconAlert className="w-4 h-4 shrink-0" strokeWidth={1.9} />
+              <span className="text-xs font-semibold whitespace-nowrap">
                 {bajos.length > 0 && `${bajos.length} bajo`}
                 {bajos.length > 0 && agotados.length > 0 && ' · '}
                 {agotados.length > 0 && `${agotados.length} agotado${agotados.length > 1 ? 's' : ''}`}
@@ -418,25 +434,25 @@ const Products = () => {
             {lowStockOpen && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setLowStockOpen(false)} />
-                <div className="absolute left-0 md:left-auto top-full mt-2 z-40 w-72 max-w-[calc(100vw-2rem)] bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 py-2 animate-fadeIn max-h-64 overflow-y-auto">
+                <div className="absolute left-0 md:left-auto top-full mt-2 z-40 w-72 max-w-[calc(100vw-2rem)] bg-ios-surface/95 backdrop-blur-2xl border border-ios-separator/40 rounded-2xl shadow-ios-alert p-2 animate-ios-modal max-h-64 overflow-y-auto">
                   {bajos.map((item, i) => (
-                    <div key={i} className="flex items-center gap-2 px-4 py-1.5 text-xs text-red-300/80">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-400/50 shrink-0" />
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 text-xs text-ios-orange/90 rounded-xl">
+                      <span className="w-1.5 h-1.5 rounded-full bg-ios-orange/60 shrink-0" />
                       <span className="font-medium truncate">{item.productoNombre}</span>
-                      {item.talle && <span className="shrink-0">· {item.talle}</span>}
-                      {item.color && <span className="shrink-0">· {item.color}</span>}
-                      <span className="ml-auto shrink-0 text-red-400/60">{item.cantidad} uds.</span>
+                      {item.talle && <span className="shrink-0 text-ios-tertiary">· {item.talle}</span>}
+                      {item.color && <span className="shrink-0 text-ios-tertiary">· {item.color}</span>}
+                      <span className="ml-auto shrink-0 text-ios-orange/70 font-semibold">{item.cantidad} uds.</span>
                     </div>
                   ))}
                   {bajos.length > 0 && agotados.length > 0 && (
-                    <div className="h-px bg-red-500/10 my-1 mx-3" />
+                    <div className="h-px bg-ios-separator/50 my-1 mx-3" />
                   )}
                   {agotados.map((item, i) => (
-                    <div key={i} className="flex items-center gap-2 px-4 py-1.5 text-xs text-red-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 text-xs text-ios-red rounded-xl">
+                      <span className="w-1.5 h-1.5 rounded-full bg-ios-red shrink-0" />
                       <span className="font-medium truncate">{item.productoNombre}</span>
-                      {item.talle && <span className="shrink-0">· {item.talle}</span>}
-                      {item.color && <span className="shrink-0">· {item.color}</span>}
+                      {item.talle && <span className="shrink-0 text-ios-red/60">· {item.talle}</span>}
+                      {item.color && <span className="shrink-0 text-ios-red/60">· {item.color}</span>}
                       <span className="ml-auto shrink-0 font-semibold">AGOTADO</span>
                     </div>
                   ))}
@@ -447,434 +463,351 @@ const Products = () => {
         )}
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-modalIn">
-            <h2 className="text-xl font-bold text-white mb-4">
-              {editing ? 'Editar Producto' : 'Nuevo Producto'}
-            </h2>
-            <ProductForm
-              initial={editing}
-              onSubmit={handleSubmit}
-              onCancel={() => {
-                setShowForm(false);
-                setEditing(null);
-              }}
-              isSubmitting={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      <IosModal
+        open={showForm}
+        onClose={() => { setShowForm(false); setEditing(null); }}
+        maxWidth="max-w-2xl"
+      >
+        <h2 className="text-[17px] font-semibold text-ios-label mb-4">
+          {editing ? 'Editar Producto' : 'Nuevo Producto'}
+        </h2>
+        <ProductForm
+          initial={editing}
+          onSubmit={handleSubmit}
+          onCancel={() => {
+            setShowForm(false);
+            setEditing(null);
+          }}
+          isSubmitting={isSubmitting}
+        />
+      </IosModal>
 
-      {quickAdd && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto animate-modalIn">
-            <h2 className="text-lg font-bold text-white mb-1">Agregar al Carrito</h2>
-            <p className="text-white/50 text-sm mb-4">{quickAdd.nombre}</p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Cantidad</label>
+      <IosModal
+        open={!!quickAdd}
+        onClose={() => setQuickAdd(null)}
+        title="Agregar al Carrito"
+        confirmText="Agregar"
+        cancelText="Cancelar"
+        onConfirm={confirmQuickAdd}
+      >
+        <p className="text-ios-secondary text-sm mb-4 font-medium">{quickAdd?.nombre}</p>
+        <div className="space-y-4">
+          <IosField label="Cantidad">
+            <IosInput
+              type="text" inputMode="numeric"
+              value={qaCantidad}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '' || /^\d+$/.test(v)) setQaCantidad(v);
+              }}
+            />
+          </IosField>
+          <IosField label="Precio unitario">
+            <IosInput
+              type="text" inputMode="decimal"
+              value={qaPrecio}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setQaPrecio(v);
+              }}
+            />
+          </IosField>
+          {renderVariantSelect(quickAdd?.variants, qaVariantIdx, setQaVariantIdx)}
+        </div>
+      </IosModal>
+
+      <IosModal
+        open={showCart}
+        onClose={() => setShowCart(false)}
+        title={`Carrito (${cart.length} productos)`}
+        cancelText="Seguir comprando"
+        confirmText="Confirmar Venta"
+        confirmVariant="tinted"
+        onConfirm={confirmSale}
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-2 mb-4">
+          {cart.map((item, idx) => (
+            <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-ios-surface rounded-2xl p-3 border border-ios-separator/30">
+              <div className="flex-1 min-w-0 flex items-start justify-between gap-2 sm:block">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-ios-label truncate">{item.nombre}</p>
+                  {(item.talle || item.color) && (
+                    <p className="text-xs text-ios-tertiary mt-0.5">
+                      {item.talle && <span className="text-ios-secondary">Talle: {item.talle}</span>}
+                      {item.talle && item.color && <span className="text-ios-tertiary"> | </span>}
+                      {item.color && <span className="text-ios-secondary">Color: {item.color}</span>}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => removeFromCart(idx)}
+                  className="text-ios-red p-1 sm:hidden shrink-0"
+                >
+                  <IconX className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex items-center gap-2 sm:ml-auto shrink-0 w-full sm:w-auto">
                 <input
                   type="text" inputMode="numeric"
-                  value={qaCantidad}
+                  value={item.cantidad}
                   onChange={(e) => {
                     const v = e.target.value;
-                    if (v === '' || /^\d+$/.test(v)) setQaCantidad(v);
+                    if (v === '' || /^\d+$/.test(v)) updateCartItem(idx, 'cantidad', v === '' ? 1 : Number(v));
                   }}
-                  className="w-full px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-16 px-2 py-1.5 text-center bg-ios-surface2 rounded-lg text-ios-label text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
-              </div>
-              <div>
-                <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Precio unitario</label>
+                <span className="text-ios-tertiary">×</span>
                 <input
                   type="text" inputMode="decimal"
-                  value={qaPrecio}
+                  value={item.precio}
                   onChange={(e) => {
                     const v = e.target.value;
-                    if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setQaPrecio(v);
+                    if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) updateCartItem(idx, 'precio', v === '' ? 0 : Number(v));
                   }}
-                  className="w-full px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-24 px-2 py-1.5 text-right bg-ios-surface2 rounded-lg text-ios-label text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
+                <span className="text-ios-tertiary text-xs font-medium w-20 text-right">
+                  ${(item.precio * item.cantidad).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                </span>
+                <button
+                  onClick={() => removeFromCart(idx)}
+                  className="text-ios-red p-1 hidden sm:block"
+                >
+                  <IconTrash className="w-4 h-4" />
+                </button>
               </div>
-              {renderVariantSelect(quickAdd.variants, qaVariantIdx, setQaVariantIdx)}
             </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setQuickAdd(null)}
-                className="px-4 py-2 text-white/50 border border-white/10 rounded-lg text-sm hover:bg-white/5 transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmQuickAdd}
-                className="px-4 py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm hover:bg-amber-500/30 transition-all"
-              >
-                Agregar
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
-      )}
 
-      {showCart && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-2xl mx-4 max-h-[95vh] overflow-y-auto animate-modalIn">
-            <h2 className="text-xl font-bold text-white mb-4">Carrito ({cart.length} productos)</h2>
+        <div className="border-t border-ios-separator/40 pt-4 space-y-3 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <IosField label="Empleado">
+              <IosInput
+                type="text" value={sellEmpleado}
+                onChange={(e) => setSellEmpleado(e.target.value)}
+                placeholder="Nombre"
+              />
+            </IosField>
+            <IosField label="Descuento">
+              <IosInput
+                type="text" inputMode="numeric"
+                value={sellDescuento}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '' || /^\d{0,3}$/.test(v)) setSellDescuento(v);
+                }}
+                placeholder="%"
+              />
+            </IosField>
+          </div>
 
-            <div className="space-y-2 mb-4">
-              {cart.map((item, idx) => (
-                <div key={idx} className="p-3 bg-white/[0.03] border border-white/5 rounded-lg flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1 min-w-0 flex items-start justify-between gap-2 sm:block">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{item.nombre}</p>
-                      {(item.talle || item.color) && (
-                        <p className="text-xs text-white/40 mt-0.5">
-                          {item.talle && <span>Talle: {item.talle}</span>}
-                          {item.talle && item.color && <span> | </span>}
-                          {item.color && <span>Color: {item.color}</span>}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => removeFromCart(idx)}
-                      className="text-red-400 hover:text-red-300 p-1 sm:hidden shrink-0"
-                    >
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 sm:ml-auto shrink-0 w-full sm:w-auto">
-                    <input
-                      type="text" inputMode="numeric"
-                      value={item.cantidad}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === '' || /^\d+$/.test(v)) updateCartItem(idx, 'cantidad', v === '' ? 1 : Number(v));
-                      }}
-                      className="w-16 px-2 py-1.5 text-center bg-white/[0.07] border border-white/10 rounded-lg text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="text-white/20">×</span>
-                    <input
-                      type="text" inputMode="decimal"
-                      value={item.precio}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) updateCartItem(idx, 'precio', v === '' ? 0 : Number(v));
-                      }}
-                      className="w-24 px-2 py-1.5 text-right bg-white/[0.07] border border-white/10 rounded-lg text-white text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="text-white/30 text-xs font-mono w-20 text-right">
-                      ${(item.precio * item.cantidad).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </span>
-                    <button
-                      onClick={() => removeFromCart(idx)}
-                      className="text-red-400 hover:text-red-300 p-1 hidden sm:block"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+          <div className="bg-ios-surface rounded-2xl border border-ios-separator/30 p-4 space-y-3">
+            <p className="text-[13px] text-ios-secondary font-medium">Pago</p>
+            <div className="flex gap-2">
+              {metodos.map((m) => (
+                <button
+                  key={m.key} type="button"
+                  onClick={() => setSellMetodoPago(m.key)}
+                  className={`flex-1 px-3 py-2 text-sm rounded-ios-control border transition-all ios-btn-press font-medium ${
+                    sellMetodoPago === m.key
+                      ? m.activeCls
+                      : 'bg-ios-surface2 text-ios-tertiary border-transparent hover:bg-ios-surface3'
+                  }`}
+                >
+                  {m.label}
+                </button>
               ))}
             </div>
-
-            <div className="border-t border-white/10 pt-4 space-y-3 mb-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Empleado</label>
-                  <input
-                    type="text" value={sellEmpleado}
-                    onChange={(e) => setSellEmpleado(e.target.value)}
-                    placeholder="Nombre"
-                    className="w-full px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
-                  />
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <IosToggle checked={sellSplit} onChange={() => { setSellSplit(!sellSplit); setSellMonto2(''); }} />
+                <span className="text-sm text-ios-secondary font-medium">Dividir pago</span>
+              </label>
+              <span className="text-sm text-ios-tertiary">
+                Monto: <span className="text-ios-label font-semibold">${sellMonto1.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+              </span>
+            </div>
+            {sellSplit && (
+              <div className="space-y-2 pt-3 border-t border-ios-separator/40">
+                <div className="flex items-center justify-between px-3 py-2 bg-ios-tint/10 rounded-ios-control">
+                  <span className="text-sm font-semibold text-ios-tint">{metodos.find((m) => m.key === sellMetodoPago)?.label}</span>
+                  <span className="text-sm text-ios-label font-mono">${sellMonto1.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div>
-                  <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">Descuento</label>
+                <div className="flex gap-3 items-center">
+                  <IosSelect value={sellMetodo2} onChange={(e) => setSellMetodo2(e.target.value)} className="flex-1">
+                    {metodos.filter((m) => m.key !== sellMetodoPago).map((m) => (
+                      <option key={m.key} value={m.key} className="bg-ios-surface2">{m.label}</option>
+                    ))}
+                  </IosSelect>
+                  <span className="text-sm text-ios-tertiary font-mono">$</span>
                   <input
                     type="text" inputMode="numeric"
-                    value={sellDescuento}
+                    value={sellMonto2}
                     onChange={(e) => {
                       const v = e.target.value;
-                      if (v === '' || /^\d{0,3}$/.test(v)) setSellDescuento(v);
+                      if (v === '' || /^\d*\.?\d*$/.test(v)) setSellMonto2(v);
                     }}
-                    className="w-full px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    placeholder="%"
+                    className="w-24 sm:w-28 px-3 py-2.5 bg-ios-surface2 rounded-ios-control text-ios-label text-sm text-right focus:outline-none focus:ring-2 focus:ring-ios-tint/40 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>
-
-              <div className="bg-white/[0.03] border border-white/5 rounded-lg p-4 space-y-3">
-                <label className="block text-xs text-white/40 font-medium uppercase tracking-wider">Pago</label>
-                <div className="flex gap-2">
-                  {['efectivo', 'transferencia', 'tarjeta'].map((m) => (
-                    <button
-                      key={m} type="button"
-                      onClick={() => setSellMetodoPago(m)}
-                      className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-all ${
-                        sellMetodoPago === m
-                          ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                          : 'bg-white/[0.07] text-white/50 border-white/10 hover:bg-white/[0.10]'
-                      }`}
-                    >
-                      {m === 'efectivo' ? 'Efectivo' : m === 'transferencia' ? 'Transferencia' : 'Tarjeta'}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox" checked={sellSplit}
-                      onChange={(e) => { setSellSplit(e.target.checked); setSellMonto2(''); }}
-                      className="w-4 h-4 rounded bg-white/[0.07] border-white/10 text-green-400 focus:ring-green-500/30"
-                    />
-                    <span className="text-sm text-white/50">Dividir pago</span>
-                  </label>
-                  <span className="text-sm text-white/30">
-                    Monto: <span className="text-white font-mono font-medium">${sellMonto1.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
-                  </span>
-                </div>
-                {sellSplit && (
-                  <div className="space-y-2 pt-3 border-t border-white/5">
-                    <div className="flex items-center justify-between px-3 py-2 bg-white/[0.04] rounded-lg">
-                      <span className="text-sm font-medium text-green-400">{sellMetodoPago === 'efectivo' ? 'Efectivo' : sellMetodoPago === 'transferencia' ? 'Transferencia' : 'Tarjeta'}</span>
-                      <span className="text-sm text-white font-mono">${sellMonto1.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex gap-3 items-center">
-                      <select
-                        value={sellMetodo2}
-                        onChange={(e) => setSellMetodo2(e.target.value)}
-                        className="flex-1 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-white/30"
-                      >
-                        {['efectivo', 'transferencia', 'tarjeta'].filter((m) => m !== sellMetodoPago).map((m) => (
-                          <option key={m} value={m} className="bg-neutral-900">
-                            {m === 'efectivo' ? 'Efectivo' : m === 'transferencia' ? 'Transferencia' : 'Tarjeta'}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="text-sm text-white/30 font-mono">$</span>
-                      <input
-                        type="text" inputMode="numeric"
-                        value={sellMonto2}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === '' || /^\d*\.?\d*$/.test(v)) setSellMonto2(v);
-                        }}
-                        className="w-24 sm:w-28 px-3 py-2 bg-white/[0.07] border border-white/10 rounded-lg text-white text-sm text-right focus:outline-none focus:border-white/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-t border-white/10 pt-4">
-              <div className="text-sm text-center sm:text-left">
-                {descuentoNum > 0 && (
-                  <span className="text-green-400/80 mr-3">Desc. {descuentoNum}%</span>
-                )}
-                <span className="text-white/70 font-semibold">Total: <span className="text-white font-mono text-lg">${finalTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span></span>
-              </div>
-              <div className="flex gap-3 w-full sm:w-auto">
-                <button
-                  onClick={() => setShowCart(false)}
-                  className="flex-1 sm:flex-none px-4 py-2 text-white/50 border border-white/10 rounded-lg text-sm hover:bg-white/5 transition-all"
-                >
-                  Seguir comprando
-                </button>
-                <button
-                  onClick={confirmSale}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg text-sm hover:bg-green-500/30 transition-all"
-                >
-                  Confirmar Venta
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         </div>
-      )}
 
-      {addStockModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto animate-modalIn">
-            <h2 className="text-xl font-bold text-white mb-2">Agregar Stock</h2>
-            <p className="text-white/50 text-sm mb-4">
-              <span className="text-white font-semibold">{addStockModal.nombre}</span> — Stock actual: {addStockModal.cantidad}
-            </p>
-            {renderVariantSelect(addStockModal.variants, addStockVariantIdx, setAddStockVariantIdx)}
-            <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
-              ¿Cuántas unidades entraron?
-            </label>
-            <input
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-ios-separator/40 pt-4">
+          <div className="text-sm text-center sm:text-left">
+            {descuentoNum > 0 && (
+              <span className="text-ios-green/90 mr-3 font-medium">Desc. {descuentoNum}%</span>
+            )}
+            <span className="text-ios-secondary font-semibold">Total: <span className="text-ios-label text-lg font-bold">${finalTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span></span>
+          </div>
+        </div>
+      </IosModal>
+
+      <IosModal
+        open={!!addStockModal}
+        onClose={() => setAddStockModal(null)}
+        title="Agregar Stock"
+        cancelText="Cancelar"
+        confirmText="Confirmar Ingreso"
+        onConfirm={confirmAddStock}
+      >
+        <p className="text-ios-secondary text-sm mb-4">
+          <span className="text-ios-label font-semibold">{addStockModal?.nombre}</span> — Stock actual: {addStockModal?.cantidad}
+        </p>
+        <div className="space-y-4">
+          {renderVariantSelect(addStockModal?.variants, addStockVariantIdx, setAddStockVariantIdx)}
+          <IosField label="¿Cuántas unidades entraron?">
+            <IosInput
               type="text" inputMode="numeric"
               value={addStockCantidad}
               onChange={(e) => {
                 const v = e.target.value;
                 if (v === '' || /^\d+$/.test(v)) setAddStockCantidad(v);
               }}
-              className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm mb-6 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setAddStockModal(null)}
-                className="px-4 py-2 text-white/50 border border-white/10 rounded-lg text-sm hover:bg-white/5 transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmAddStock}
-                className="px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-lg text-sm hover:bg-cyan-500/30 transition-all"
-              >
-                Confirmar Ingreso
-              </button>
-            </div>
-          </div>
+          </IosField>
         </div>
-      )}
+      </IosModal>
 
-      {returnModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-backdropIn">
-          <div className="bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-modalIn">
-            <h2 className="text-xl font-bold text-white mb-4">
-              Devolución / Cambio
-            </h2>
-            <p className="text-white/50 text-sm mb-4">
-              <span className="text-white font-semibold">{returnModal.nombre}</span> — Stock actual: {returnModal.cantidad}
-            </p>
+      <IosModal
+        open={!!returnModal}
+        onClose={() => setReturnModal(null)}
+        title="Devolución / Cambio"
+        cancelText="Cancelar"
+        confirmText={exchangeTarget ? 'Confirmar Cambio' : 'Confirmar Devolución'}
+        confirmVariant="destructiveTinted"
+        onConfirm={confirmReturn}
+        maxWidth="max-w-xl"
+      >
+        <p className="text-ios-secondary text-sm mb-4">
+          <span className="text-ios-label font-semibold">{returnModal?.nombre}</span> — Stock actual: {returnModal?.cantidad}
+        </p>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
-                  Cantidad a devolver
-                </label>
-                <input
-                  type="text" inputMode="numeric"
-                  value={returnCantidad}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === '' || /^\d+$/.test(v)) setReturnCantidad(v);
-                  }}
-                  className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        <div className="space-y-4">
+          <IosField label="Cantidad a devolver">
+            <IosInput
+              type="text" inputMode="numeric"
+              value={returnCantidad}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '' || /^\d+$/.test(v)) setReturnCantidad(v);
+              }}
+            />
+          </IosField>
+
+          {renderVariantSelect(returnModal?.variants, returnVariantIdx, setReturnVariantIdx, 'Variante a devolver')}
+
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <IosToggle checked={exchangeActivo} onChange={setExchangeActivo} />
+            <span className="text-sm text-ios-label font-medium">Quiero cambiarlo por otro producto</span>
+          </label>
+
+          {exchangeActivo && (
+            <>
+              <IosField label="Buscar producto nuevo">
+                <IosSearch
+                  value={exchangeSearch}
+                  onChange={setExchangeSearch}
+                  placeholder="Escribí el nombre..."
                 />
-              </div>
+              </IosField>
 
-              {renderVariantSelect(returnModal.variants, returnVariantIdx, setReturnVariantIdx, 'Variante a devolver')}
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={exchangeActivo}
-                  onChange={(e) => {
-                    setExchangeActivo(e.target.checked);
-                    setExchangeTarget(null);
-                    setExchangeSearch('');
-                  }}
-                  className="w-4 h-4 rounded bg-white/[0.07] border-white/10 text-purple-400 focus:ring-purple-500/30"
-                />
-                <span className="text-sm text-white/70">Quiero cambiarlo por otro producto</span>
-              </label>
-
-              {exchangeActivo && (
-                <>
-                  <div>
-                    <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
-                      Buscar producto nuevo
-                    </label>
-                    <input
-                      type="text"
-                      value={exchangeSearch}
-                      onChange={(e) => setExchangeSearch(e.target.value)}
-                      placeholder="Escribí el nombre..."
-                      className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-sm"
-                    />
-                  </div>
-
-                  {exchangeSearch && filteredExchange.length > 0 && (
-                    <div className="border border-white/10 rounded-lg max-h-36 overflow-y-auto bg-neutral-800/50">
-                      {filteredExchange.map((p) => (
-                        <button
-                          key={p._id}
-                          onClick={() => {
-                            setExchangeTarget(p);
-                            setExchangeSearch('');
-                            setExchangeCantidad('1');
-                            setExchangeVariantIdx('');
-                          }}
-                          className={`w-full text-left px-3 py-2 text-sm border-b border-white/5 last:border-0 transition-colors ${
-                            exchangeTarget?._id === p._id ? 'bg-purple-500/10 text-purple-300 font-semibold' : 'text-white/60 hover:bg-white/5'
-                          }`}
-                        >
-                          {p.nombre} <span className="text-white/30">(stock: {p.cantidad})</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {exchangeTarget && (
-                    <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
-                      <p className="text-sm text-purple-300 mb-2">
-                        <span className="font-semibold">Producto nuevo:</span> {exchangeTarget.nombre}
-                        <br />
-                        <span className="font-semibold">Stock disponible:</span> {exchangeTarget.cantidad}
-                      </p>
-                      {renderVariantSelect(exchangeTarget.variants, exchangeVariantIdx, setExchangeVariantIdx, 'Variante a cargar')}
-                      <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
-                        Cantidad a cargar
-                      </label>
-                      <input
-                        type="text" inputMode="numeric"
-                        value={exchangeCantidad}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === '' || /^\d+$/.test(v)) setExchangeCantidad(v);
-                        }}
-                        className="w-full px-3 py-2.5 bg-white/[0.07] border border-purple-500/20 rounded-lg text-white focus:outline-none focus:border-purple-500/40 transition-all text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    </div>
-                  )}
-                </>
+              {exchangeSearch && filteredExchange.length > 0 && (
+                <div className="border border-ios-separator/40 rounded-2xl max-h-36 overflow-y-auto bg-ios-surface overflow-hidden">
+                  {filteredExchange.map((p) => (
+                    <button
+                      key={p._id}
+                      onClick={() => {
+                        setExchangeTarget(p);
+                        setExchangeSearch('');
+                        setExchangeCantidad('1');
+                        setExchangeVariantIdx('');
+                      }}
+                      className={`w-full text-left px-4 py-2.5 text-sm border-b border-ios-separator/30 last:border-0 transition-colors ${
+                        exchangeTarget?._id === p._id
+                          ? 'bg-ios-purple/10 text-ios-purple font-semibold'
+                          : 'text-ios-secondary hover:bg-white/5'
+                      }`}
+                    >
+                      {p.nombre} <span className="text-ios-tertiary">(stock: {p.cantidad})</span>
+                    </button>
+                  ))}
+                </div>
               )}
 
-              <div>
-                <label className="block text-xs text-white/40 font-medium uppercase tracking-wider mb-1.5">
-                  Motivo
-                </label>
-                <select
-                  value={returnMotivo}
-                  onChange={(e) => setReturnMotivo(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-white/[0.07] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30 transition-all text-sm"
-                >
-                  <option value="" className="bg-neutral-900">Seleccionar motivo</option>
-                  <option value="Defectuoso" className="bg-neutral-900">Defectuoso</option>
-                  <option value="Cambio de talla" className="bg-neutral-900">Cambio de talla</option>
-                  <option value="Cambio de modelo" className="bg-neutral-900">Cambio de modelo</option>
-                  <option value="Devolución de venta" className="bg-neutral-900">Devolución de venta</option>
-                </select>
-              </div>
-            </div>
+              {exchangeTarget && (
+                <div className="bg-ios-purple/10 border border-ios-purple/25 rounded-2xl p-4 space-y-4">
+                  <p className="text-sm text-ios-purple font-medium">
+                    <span className="font-semibold">Producto nuevo:</span> {exchangeTarget.nombre}
+                    <br />
+                    <span className="font-semibold">Stock disponible:</span> {exchangeTarget.cantidad}
+                  </p>
+                  {renderVariantSelect(exchangeTarget.variants, exchangeVariantIdx, setExchangeVariantIdx, 'Variante a cargar')}
+                  <IosField label="Cantidad a cargar">
+                    <IosInput
+                      type="text" inputMode="numeric"
+                      value={exchangeCantidad}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === '' || /^\d+$/.test(v)) setExchangeCantidad(v);
+                      }}
+                    />
+                  </IosField>
+                </div>
+              )}
+            </>
+          )}
 
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setReturnModal(null)}
-                className="px-4 py-2 text-white/50 border border-white/10 rounded-lg text-sm hover:bg-white/5 transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmReturn}
-                className="px-4 py-2 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-lg text-sm hover:bg-orange-500/30 transition-all"
-              >
-                {exchangeTarget ? 'Confirmar Cambio' : 'Confirmar Devolución'}
-              </button>
-            </div>
-          </div>
+          <IosField label="Motivo">
+            <IosSelect value={returnMotivo} onChange={(e) => setReturnMotivo(e.target.value)}>
+              <option value="" className="bg-ios-surface2">Seleccionar motivo</option>
+              <option value="Defectuoso" className="bg-ios-surface2">Defectuoso</option>
+              <option value="Cambio de talla" className="bg-ios-surface2">Cambio de talla</option>
+              <option value="Cambio de modelo" className="bg-ios-surface2">Cambio de modelo</option>
+              <option value="Devolución de venta" className="bg-ios-surface2">Devolución de venta</option>
+              <option value="Otro" className="bg-ios-surface2">Otro</option>
+            </IosSelect>
+          </IosField>
+
+          {returnMotivo === 'Otro' && (
+            <IosField label="Detalle del motivo">
+              <IosInput
+                type="text"
+                value={returnOtroMotivo}
+                onChange={(e) => setReturnOtroMotivo(e.target.value)}
+                placeholder="Escribí el motivo..."
+              />
+            </IosField>
+          )}
         </div>
-      )}
+      </IosModal>
 
       {error && (
-        <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+        <div className="mb-4 px-4 py-3 bg-ios-red/10 border border-ios-red/25 rounded-ios-control text-ios-red text-sm font-medium">
           {error}
         </div>
       )}
@@ -882,34 +815,39 @@ const Products = () => {
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <div className="hidden md:block bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-x-auto">
+        <div className="hidden md:block bg-ios-surface rounded-3xl overflow-hidden shadow-ios-card border border-ios-separator/30">
           <table className="w-full text-sm">
-            <thead className="bg-white/5">
+            <thead>
               <tr>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Nombre</th>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Detalle</th>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Precio</th>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Total</th>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Categoría</th>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Proveedor</th>
-                <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Acciones</th>
+                <th className="text-left px-5 py-3 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Nombre</th>
+                <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Detalle</th>
+                <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Precio</th>
+                <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Total</th>
+                <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Categoría</th>
+                <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Proveedor</th>
+                <th className="text-right px-5 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-white/30">
-                    {error || 'No hay productos'}
+                  <td colSpan={7} className="text-center py-14 text-ios-tertiary text-sm">
+                    <div className="flex flex-col items-center gap-2">
+                      <IconBox className="w-8 h-8 text-ios-tertiary/50" strokeWidth={1.5} />
+                      {error || 'No hay productos'}
+                    </div>
                   </td>
                 </tr>
               ) : (
                 products.map((p, i) => (
-                  <tr key={p._id} className="border-t border-white/5 even:bg-white/[0.03] hover:bg-white/[0.05] transition-colors animate-rowIn" style={{ animationDelay: `${i * 25}ms` }}>
-                    <td className="px-4 py-3 font-medium text-white">{p.nombre}</td>
-                    <td
-                      className="px-4 py-3 cursor-pointer"
-                      onClick={() => setExpandedId(expandedId === p._id ? null : p._id)}
-                    >
+                  <tr
+                    key={p._id}
+                    className="border-t border-ios-separator/30 transition-colors hover:bg-white/[0.03] cursor-pointer animate-ios-row"
+                    style={{ animationDelay: `${i * 20}ms` }}
+                    onClick={() => setExpandedId(expandedId === p._id ? null : p._id)}
+                  >
+                    <td className="px-5 py-3.5 font-semibold text-ios-label">{p.nombre}</td>
+                    <td className="px-4 py-3.5">
                       {expandedId === p._id ? (
                         <div className="text-xs leading-relaxed space-y-0.5 animate-slideDown">
                           {p.colores?.length > 0
@@ -917,70 +855,67 @@ const Products = () => {
                                 const vars = p.variants.filter((v) => v.color === color);
                                 return (
                                   <div key={color}>
-                                    <span className="font-semibold text-white/80">{color}: </span>
+                                    <span className="font-semibold text-ios-secondary">{color}: </span>
                                     {vars.length > 0
                                       ? vars.map((v, i) => (
-                                          <span key={i} className="text-white/50">
+                                          <span key={i} className="text-ios-tertiary">
                                             {v.talle}({v.cantidad}){i < vars.length - 1 ? ' · ' : ''}
                                           </span>
                                         ))
-                                      : <span className="text-white/30">—</span>}
+                                      : <span className="text-ios-tertiary">—</span>}
                                   </div>
                                 );
                               })
                             : p.variants?.length > 0
                               ? p.variants.map((v, i) => (
-                                  <span key={i} className="text-white/50">
+                                  <span key={i} className="text-ios-tertiary">
                                     {variantShortLabel(v)}:{v.cantidad}{i < p.variants.length - 1 ? ', ' : ''}
                                   </span>
                                 ))
-                              : <span className="text-white/30">—</span>}
+                              : <span className="text-ios-tertiary">—</span>}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-xs">
-                          <svg className={`w-3 h-3 text-white/30 transition-transform ${expandedId === p._id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
+                          <IconChevronDown className={`w-3 h-3 text-ios-tertiary transition-transform ${expandedId === p._id ? 'rotate-180' : ''}`} strokeWidth={2.2} />
                           {p.colores?.length > 0 ? (
-                            <span className="text-white/50">
+                            <span className="text-ios-tertiary">
                               {p.colores.slice(0, 3).map((c, i) => {
                                 const count = p.variants.filter((v) => v.color === c).length;
                                 return (
                                   <span key={c}>
-                                    {i > 0 && <span className="text-white/20"> · </span>}
-                                    <span className="text-white/60">{c}</span>
-                                    <span className="text-white/30">(+{count})</span>
+                                    {i > 0 && <span className="text-ios-separator"> · </span>}
+                                    <span className="text-ios-secondary">{c}</span>
+                                    <span className="text-ios-tertiary">(+{count})</span>
                                   </span>
                                 );
                               })}
-                              {p.colores.length > 3 && <span className="text-white/20 ml-1">· +{p.colores.length - 3} más</span>}
+                              {p.colores.length > 3 && <span className="text-ios-tertiary ml-1">· +{p.colores.length - 3} más</span>}
                             </span>
                           ) : p.variants?.length > 0 ? (
-                            <span className="text-white/50">{p.variants.length} variantes</span>
+                            <span className="text-ios-secondary">{p.variants.length} variantes</span>
                           ) : (
-                            <span className="text-white/30">—</span>
+                            <span className="text-ios-tertiary">—</span>
                           )}
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-white/70">
+                    <td className="px-4 py-3.5 text-ios-secondary">
                       {p.precio != null ? `$${Number(p.precio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '—'}
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1.5 ${(p.stockMinimo != null && p.cantidad <= p.stockMinimo) ? 'text-red-400 font-semibold' : 'text-white/60'}`}>
+                    <td className="px-4 py-3.5">
+                      <span className={`inline-flex items-center gap-1.5 font-medium ${(p.stockMinimo != null && p.cantidad <= p.stockMinimo) ? 'text-ios-red font-semibold' : 'text-ios-label'}`}>
                         {(p.stockMinimo != null && p.cantidad <= p.stockMinimo) && (
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
+                          <IconAlert className="w-4 h-4" strokeWidth={2} />
                         )}
                         {p.cantidad}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-white/50">{p.categoria}</td>
-                    <td className="px-4 py-3 text-white/50">{p.proveedor || '—'}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5 text-ios-tertiary">{p.categoria}</td>
+                    <td className="px-4 py-3.5 text-ios-tertiary">{p.proveedor || '—'}</td>
+                    <td className="px-5 py-3.5 text-right">
                       <button
                         onClick={(e) => {
+                          e.stopPropagation();
                           if (dropdown.product?._id === p._id) {
                             setDropdown({ product: null, x: 0, y: 0 });
                           } else {
@@ -988,7 +923,7 @@ const Products = () => {
                             setDropdown({ product: p, x: 0, y: 0 });
                           }
                         }}
-                        className="p-2 rounded-lg hover:bg-white/10 text-white/40 transition-colors"
+                        className="p-2 rounded-full hover:bg-white/10 text-ios-secondary transition-colors"
                       >
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
@@ -1004,24 +939,24 @@ const Products = () => {
       )}
 
       {!loading && (
-        <div className="md:hidden space-y-3">
+        <div className="md:hidden space-y-2.5">
           {products.length === 0 ? (
-            <div className="text-center py-8 text-white/30 text-sm">
+            <div className="text-center py-10 text-ios-tertiary text-sm">
               {error || 'No hay productos'}
             </div>
           ) : (
-            products.map((p) => (
-              <div key={p._id} className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-4">
+            products.map((p, i) => (
+              <div key={p._id} className="bg-ios-surface border border-ios-separator/30 rounded-2xl px-4 py-3.5 shadow-ios-card animate-ios-row" style={{ animationDelay: `${i * 20}ms` }}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-medium text-white">{p.nombre}</p>
-                    <p className="text-xs text-white/30 mt-0.5">
+                    <p className="font-semibold text-ios-label">{p.nombre}</p>
+                    <p className="text-xs text-ios-tertiary mt-0.5">
                       {p.categoria}
                       {p.proveedor ? ` · ${p.proveedor}` : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${(p.stockMinimo != null && p.cantidad <= p.stockMinimo) ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white/60'}`}>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${(p.stockMinimo != null && p.cantidad <= p.stockMinimo) ? 'bg-ios-red/15 text-ios-red' : 'bg-ios-surface2 text-ios-secondary'}`}>
                       {p.cantidad}
                     </span>
                     <button
@@ -1033,7 +968,7 @@ const Products = () => {
                           setDropdown({ product: p, x: 0, y: 0 });
                         }
                       }}
-                      className="p-2 rounded-lg hover:bg-white/10 text-white/40 transition-colors"
+                      className="p-2 rounded-full hover:bg-white/10 text-ios-secondary transition-colors"
                     >
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
@@ -1045,45 +980,43 @@ const Products = () => {
                   onClick={() => setExpandedId(expandedId === p._id ? null : p._id)}
                   className="w-full flex items-center justify-between mt-3 text-left"
                 >
-                  <span className="text-white/70">
+                  <span className="text-ios-secondary font-medium">
                     {p.precio != null ? `$${Number(p.precio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '—'}
                   </span>
-                  <span className="flex items-center gap-1.5 text-xs text-white/40">
+                  <span className="flex items-center gap-1.5 text-xs text-ios-tertiary">
                     {p.colores?.length > 0
                       ? `${p.colores.length} ${p.colores.length === 1 ? 'color' : 'colores'}`
                       : p.variants?.length > 0
                         ? `${p.variants.length} variantes`
                         : 'Ver detalle'}
-                    <svg className={`w-3 h-3 transition-transform ${expandedId === p._id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <IconChevronDown className={`w-3 h-3 transition-transform ${expandedId === p._id ? 'rotate-180' : ''}`} strokeWidth={2.2} />
                   </span>
                 </button>
                 {expandedId === p._id && (
-                  <div className="mt-3 pt-3 border-t border-white/5 text-xs leading-relaxed space-y-1 animate-slideDown">
+                  <div className="mt-3 pt-3 border-t border-ios-separator/40 text-xs leading-relaxed space-y-1 animate-slideDown">
                     {p.colores?.length > 0
                       ? p.colores.map((color) => {
                           const vars = p.variants.filter((v) => v.color === color);
                           return (
                             <div key={color}>
-                              <span className="font-semibold text-white/80">{color}: </span>
+                              <span className="font-semibold text-ios-secondary">{color}: </span>
                               {vars.length > 0
                                 ? vars.map((v, i) => (
-                                    <span key={i} className="text-white/50">
+                                    <span key={i} className="text-ios-tertiary">
                                       {v.talle}({v.cantidad}){i < vars.length - 1 ? ' · ' : ''}
                                     </span>
                                   ))
-                                : <span className="text-white/30">—</span>}
+                                : <span className="text-ios-tertiary">—</span>}
                             </div>
                           );
                         })
                       : p.variants?.length > 0
                         ? p.variants.map((v, i) => (
-                            <span key={i} className="text-white/50">
+                            <span key={i} className="text-ios-tertiary">
                               {variantShortLabel(v)}:{v.cantidad}{i < p.variants.length - 1 ? ', ' : ''}
                             </span>
                           ))
-                        : <span className="text-white/30">—</span>}
+                        : <span className="text-ios-tertiary">—</span>}
                   </div>
                 )}
               </div>
@@ -1097,43 +1030,48 @@ const Products = () => {
           <div className="fixed inset-0 z-30" onClick={() => setDropdown({ product: null, x: 0, y: 0 })} />
           <div
             ref={dropdownRef}
-            className="fixed z-40 w-40 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/40 py-1.5 animate-fadeIn"
+            className="fixed z-40 w-48 bg-ios-surface/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-ios-alert p-1.5 animate-ios-modal"
             style={{ left: dropdown.x, top: dropdown.y }}
           >
+            {user?.rol === 'admin' && (
+              <button
+                onClick={() => handleDropdownAction('editar')}
+                className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-ios-tint hover:bg-white/5 rounded-xl transition-colors font-medium"
+              >
+                <IconPencil className="w-4 h-4" />
+                Editar
+              </button>
+            )}
             <button
-              onClick={() => { openQuickAdd(dropdown.product); setDropdown({ product: null, x: 0, y: 0 }); }}
-              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-amber-400 hover:bg-white/5 transition-colors"
+              onClick={() => handleDropdownAction('carrito')}
+              className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-ios-orange hover:bg-white/5 rounded-xl transition-colors font-medium"
             >
+              <IconCart className="w-4 h-4" />
               Agregar al carrito
             </button>
             {user?.rol === 'admin' && (
               <button
-                onClick={() => { openAddStock(dropdown.product); setDropdown({ product: null, x: 0, y: 0 }); }}
-                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-cyan-400 hover:bg-white/5 transition-colors"
+                onClick={() => handleDropdownAction('stock')}
+                className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-ios-tint hover:bg-white/5 rounded-xl transition-colors font-medium"
               >
-                 Agregar Stock
+                <IconList className="w-4 h-4" />
+                Agregar Stock
               </button>
             )}
             <button
-              onClick={() => { openReturn(dropdown.product); setDropdown({ product: null, x: 0, y: 0 }); }}
-              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-orange-400 hover:bg-white/5 transition-colors"
+              onClick={() => handleDropdownAction('cambio')}
+              className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-ios-purple hover:bg-white/5 rounded-xl transition-colors font-medium"
             >
+              <IconX className="w-4 h-4" />
               Cambio
             </button>
             {user?.rol === 'admin' && (
               <button
-                onClick={() => { handleEdit(dropdown.product); setDropdown({ product: null, x: 0, y: 0 }); }}
-                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-blue-400 hover:bg-white/5 transition-colors"
+                onClick={() => handleDropdownAction('eliminar')}
+                className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-ios-red hover:bg-white/5 rounded-xl transition-colors font-medium"
               >
-                 Editar
-              </button>
-            )}
-            {user?.rol === 'admin' && (
-              <button
-                onClick={() => { handleDelete(dropdown.product._id); setDropdown({ product: null, x: 0, y: 0 }); }}
-                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-400 hover:bg-white/5 transition-colors"
-              >
-                 Eliminar
+                <IconTrash className="w-4 h-4" />
+                Eliminar
               </button>
             )}
           </div>

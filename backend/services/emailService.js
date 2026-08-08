@@ -88,18 +88,33 @@ const getItemsDeVenta = (sale) =>
     ? sale.items
     : [{ producto: sale.producto, cantidad: sale.cantidad, talle: sale.talle, precio: sale.precio, subtotal: sale.total }]);
 
-const buildDetalleVentas = (ventas) => {
-  if (!ventas || ventas.length === 0) return 'Sin ventas registradas';
+const escapeHtml = (s) =>
+  String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  const lineas = [];
+const buildItemsVenta = (ventas) => {
+  if (!ventas || ventas.length === 0) return [];
+  const items = [];
   for (const s of ventas) {
     for (const item of getItemsDeVenta(s)) {
-      const nombre = item.producto?.nombre || 'Producto eliminado';
-      const talle = item.talle ? ` (${item.talle})` : '';
-      const subtotal = item.subtotal ?? (item.precio || 0) * item.cantidad;
-      lineas.push(`• ${nombre} x${item.cantidad}${talle} — ${formatoPesos(subtotal)} — ${s.empleado || '—'}`);
+      items.push({
+        nombre: item.producto?.nombre || 'Producto eliminado',
+        cantidad: item.cantidad,
+        talle: item.talle || '',
+        subtotal: Number(item.subtotal ?? (item.precio || 0) * item.cantidad),
+        empleado: s.empleado || '—',
+      });
     }
   }
+  return items;
+};
+
+const buildDetalleVentas = (ventas) => {
+  const items = buildItemsVenta(ventas);
+  if (items.length === 0) return 'Sin ventas registradas';
+
+  const lineas = items.map(
+    (i) => `• ${i.nombre} x${i.cantidad}${i.talle ? ` (${i.talle})` : ''} — ${formatoPesos(i.subtotal)} — ${i.empleado}`
+  );
 
   if (lineas.length <= MAX_LINEAS) return lineas.join('\n');
   const restantes = lineas.length - MAX_LINEAS;
@@ -112,14 +127,18 @@ const buildEmpleados = (ventas) =>
 export const buildDatosCierre = ({ ventas, close, offset = 0, turno, totalDia }) => {
   const fecha = buildFecha(close.fecha, offset);
   const hora = buildHora(close.cerradoAt, offset);
-  const turnoLabel = turno === 'tarde' ? 'tarde' : 'mañana';
+  const turnoLabel = turno === 'tarde' ? 'turno tarde' : 'turno mañana';
   const total = formatoPesos(close.total);
   const unidades = close.cantidad;
   const efectivo = formatoPesos(close.efectivo?.total || 0);
+  const efCantidad = close.efectivo?.cantidad || 0;
   const transferencia = formatoPesos(close.transferencia?.total || 0);
+  const trCantidad = close.transferencia?.cantidad || 0;
   const tarjeta = formatoPesos(close.tarjeta?.total || 0);
+  const tjCantidad = close.tarjeta?.cantidad || 0;
   const cerradoPor = close.cerradoPor || '—';
   const empleados = buildEmpleados(ventas);
+  const items = buildItemsVenta(ventas);
   const detalle = buildDetalleVentas(ventas);
 
   const filas = [
@@ -141,39 +160,178 @@ export const buildDatosCierre = ({ ventas, close, offset = 0, turno, totalDia })
 
   filas.push(['Empleado(s)', empleados], ['Cerrado por', cerradoPor]);
 
-  const lineas = detalle.split('\n').filter(Boolean);
-  const rowsHtml = lineas
-    .map((l) => `<li style="margin:4px 0;">${l.replace(/^•\s*/, '')}</li>`)
-    .join('');
-
-  const filasHtml = filas
-    .map(([k, v]) => `<tr><td style="padding:6px 12px 6px 0;color:#71717a;">${k}</td><td style="padding:6px 0;font-weight:600;">${v}</td></tr>`)
-    .join('');
-
-  const html = `
-    <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;border:1px solid #e4e4e7;border-radius:12px;overflow:hidden;">
-      <div style="background:#18181b;color:#fff;padding:16px 20px;">
-        <h2 style="margin:0;font-size:18px;">Cierre de ${turnoLabel} del ${fecha} a las ${hora}</h2>
-      </div>
-      <div style="padding:20px;">
-        <table style="width:100%;border-collapse:collapse;font-size:14px;color:#27272a;">
-          ${filasHtml}
-        </table>
-        <h3 style="margin:20px 0 8px;font-size:14px;color:#71717a;">Ventas de la ${turnoLabel}</h3>
-        <ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.5;">${rowsHtml}</ul>
-      </div>
-    </div>`;
-
   const textoFilas = filas.map(([k, v]) => `${k}: ${v}`).join('\n');
+
+  const subject = `Cierre ${turnoLabel} del ${fecha}`;
+
+  /* ---------- HTML beige + verde oliva ---------- */
+
+  const statCard = (label, valor, cantidad) => `
+        <td width="33%" style="padding:5px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bn-stat" style="background:#F7F3E6;border:1px solid #E4DDC6;border-radius:14px;">
+            <tr><td style="padding:12px 14px;">
+              <p style="margin:0 0 5px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#8F8968;font-weight:700;">${label}</p>
+              <p style="margin:0;font-size:16px;font-weight:700;color:#4E5B33;white-space:nowrap;" class="bn-olive">${valor}</p>
+              <p style="margin:4px 0 0;font-size:11px;color:#8F8968;" class="bn-m">${cantidad} unid.</p>
+            </td></tr>
+          </table>
+        </td>`;
+
+  const headerHtml = `
+    <tr>
+      <td class="bn-header" style="background:#5C6B3C;padding:26px 32px 22px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td>
+              <p style="margin:0;font-size:11px;letter-spacing:2.5px;color:#D8DFC0;font-weight:700;">&#10022; BOSSA NOVA</p>
+              <p style="margin:10px 0 0;font-size:24px;color:#FDFBF3;font-weight:800;letter-spacing:-0.3px;">Cierre ${turnoLabel}</p>
+              <p style="margin:5px 0 0;font-size:13px;color:#D8DFC0;" class="bn-t2">${fecha} &middot; ${hora} hs</p>
+            </td>
+            <td align="right" valign="middle">
+              <table role="presentation" cellpadding="0" cellspacing="0" align="right">
+                <tr><td style="background:rgba(253,251,243,0.15);border:1px solid rgba(253,251,243,0.35);color:#FDFBF3;font-size:10px;letter-spacing:1.2px;font-weight:700;padding:6px 11px;border-radius:999px;text-align:center;white-space:nowrap;vertical-align:middle;">CIERRE DE TURNO</td></tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>`;
+
+  const totalHtml = `
+    <tr><td style="padding:26px 32px 4px;">
+      <p style="margin:0 0 2px;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:#8F8968;font-weight:700;" class="bn-m">Total del turno</p>
+      <p style="margin:0;font-size:34px;font-weight:800;color:#4E5B33;letter-spacing:-0.5px;" class="bn-olive">${total}</p>
+    </td></tr>`;
+
+  const statsHtml = `
+    <tr><td style="padding:16px 26px 4px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          ${statCard('Efectivo', efectivo, efCantidad)}
+          ${statCard('Transferencia', transferencia, trCantidad)}
+          ${statCard('Tarjeta', tarjeta, tjCantidad)}
+        </tr>
+      </table>
+    </td></tr>`;
+
+  const metaHtml = `
+    <tr><td style="padding:14px 32px 6px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;">
+        <tr>
+          <td style="padding:5px 0;color:#8F8968;" class="bn-m">Unidades vendidas</td>
+          <td align="right" style="padding:5px 0;font-weight:700;color:#3D3A2E;" class="bn-t1">${unidades}</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 0;color:#8F8968;" class="bn-m">Empleado(s)</td>
+          <td align="right" style="padding:5px 0;font-weight:700;color:#3D3A2E;" class="bn-t1">${escapeHtml(empleados)}</td>
+        </tr>
+      </table>
+    </td></tr>`;
+
+  const restantes = Math.max(0, items.length - MAX_LINEAS);
+  const itemsHtml = items
+    .slice(0, MAX_LINEAS)
+    .map(
+      (i) => `
+      <tr>
+        <td style="padding:7px 0;font-size:13px;line-height:1.45;color:#3D3A2E;" class="bn-t1">
+          <span style="font-weight:700;">${escapeHtml(i.nombre)}</span>
+          ${i.talle ? `<span style="color:#8F8968;" class="bn-m"> &middot; Talle ${escapeHtml(i.talle)}</span>` : ''}
+        </td>
+        <td align="right" style="padding:7px 0;font-size:13px;line-height:1.45;white-space:nowrap;color:#3D3A2E;" class="bn-t1">
+          <span style="color:#8F8968;" class="bn-m">x${i.cantidad}</span>
+          <span style="font-weight:700;color:#4E5B33;" class="bn-olive"> ${formatoPesos(i.subtotal)}</span>
+        </td>
+      </tr>`
+    )
+    .join('');
+
+  const ventasHtml = `
+    <tr><td style="padding:8px 32px 24px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #E4DDC6;">
+        <tr><td style="padding:18px 0 6px;">
+          <p style="margin:0;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:#8F8968;font-weight:700;" class="bn-m">Ventas del ${turnoLabel}</p>
+        </td></tr>
+        ${itemsHtml || '<tr><td style="padding:8px 0;font-size:13px;color:#8F8968;" class="bn-m">Sin ventas registradas</td></tr>'}
+        ${restantes > 0 ? `<tr><td style="padding:8px 0 2px;font-size:12px;color:#8F8968;font-style:italic;" class="bn-m">+${restantes} ventas m&aacute;s...</td></tr>` : ''}
+      </table>
+    </td></tr>`;
+
+  const totalDiaHtml = totalDia
+    ? `
+    <tr><td style="padding:4px 32px 20px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bn-day" style="background:#F7F3E6;border:1px solid #E4DDC6;border-left:4px solid #8A9A5B;border-radius:14px;">
+        <tr><td style="padding:14px 18px;" class="bn-day">
+          <p style="margin:0 0 8px;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:#8F8968;font-weight:700;" class="bn-m">Total del d&iacute;a</p>
+          <p style="margin:0 0 6px;font-size:13px;color:#3D3A2E;" class="bn-t1">
+            <span style="color:#8F8968;" class="bn-m">Total:</span>
+            <b style="color:#4E5B33;" class="bn-olive">${formatoPesos(totalDia.total)}</b>
+          </p>
+          <p style="margin:0;font-size:12px;color:#3D3A2E;line-height:1.7;" class="bn-t1">
+            <span style="color:#8F8968;" class="bn-m">Efectivo</span> <b style="color:#4E5B33;" class="bn-ol">${formatoPesos(totalDia.efectivo.total)}</b>
+            <span style="color:#8F8968;margin-left:12px;" class="bn-m">Transf.</span> <b style="color:#4E5B33;" class="bn-ol">${formatoPesos(totalDia.transferencia.total)}</b>
+            <span style="color:#8F8968;margin-left:12px;" class="bn-m">Tarjeta</span> <b style="color:#4E5B33;" class="bn-ol">${formatoPesos(totalDia.tarjeta.total)}</b>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>`
+    : '';
+
+  const footerHtml = `
+    <tr><td class="bn-footer" style="background:#F7F3E6;border-top:1px solid #E4DDC6;padding:18px 32px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="font-size:12px;color:#8F8968;" class="bn-m">Cerrado por <b style="color:#3D3A2E;" class="bn-t1">${escapeHtml(cerradoPor)}</b></td>
+          <td align="right" style="font-size:11px;color:#B8B193;letter-spacing:0.5px;" class="bn-m">Bossa Nova &middot; Stock Manager</td>
+        </tr>
+      </table>
+    </td></tr>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>${subject}</title>
+<style>
+  @media (prefers-color-scheme: dark) {
+    .bn-body { background-color: #1C1A12 !important; }
+    .bn-card { background-color: #26231A !important; border-color: #3A3629 !important; }
+    .bn-header { background-color: #46532C !important; }
+    .bn-stat, .bn-day { background-color: #2E2B20 !important; border-color: #3A3629 !important; }
+    .bn-footer { background-color: #211F17 !important; border-top-color: #3A3629 !important; }
+    .bn-t1 { color: #EDE6CE !important; }
+    .bn-t2 { color: #D4D1AC !important; }
+    .bn-m { color: #A8A184 !important; }
+    .bn-olive, .bn-ol { color: #C9D2A2 !important; }
+  }
+</style>
+</head>
+<body class="bn-body" style="margin:0;padding:24px 12px;background-color:#F2ECD9;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center">
+      <table role="presentation" class="bn-card" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background-color:#FDFBF3;border:1px solid #E4DDC6;border-radius:20px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;">
+        ${headerHtml}
+        ${totalHtml}
+        ${statsHtml}
+        ${metaHtml}
+        ${ventasHtml}
+        ${totalDiaHtml}
+        ${footerHtml}
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
 
   return {
     fecha,
     hora,
-    subject: `Cierre de ${turnoLabel} del ${fecha}`,
+    subject,
     text:
-      `Cierre de ${turnoLabel} del ${fecha} a las ${hora}\n` +
+      `Cierre ${turnoLabel} del ${fecha} a las ${hora}\n` +
       `${textoFilas}\n\n` +
-      `Ventas de la ${turnoLabel}:\n${detalle}`,
+      `Ventas del ${turnoLabel}:\n${detalle}`,
     html,
   };
 };

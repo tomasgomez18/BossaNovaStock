@@ -4,8 +4,38 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['"Playfair Display"', 'serif'],
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', 'system-ui', 'Roboto', '"Segoe UI"', 'sans-serif'],
+      },
+      colors: {
+        ios: {
+          bg: '#000000',
+          surface: '#1C1C1E',
+          surface2: '#2C2C2E',
+          surface3: '#3A3A3C',
+          separator: 'rgb(84 84 88 / 0.65)',
+          label: '#FFFFFF',
+          secondary: 'rgb(235 235 245 / 0.6)',
+          tertiary: 'rgb(235 235 245 / 0.3)',
+          tint: '#0A84FF',
+          green: '#32D74B',
+          red: '#FF453A',
+          orange: '#FF9F0A',
+          yellow: '#FFD60A',
+          purple: '#BF5AF2',
+          cyan: '#64D2FF',
+          gray: '#98989D',
+        },
+      },
+      borderRadius: {
+        'ios-alert': '24px',
+        'ios-sheet': '28px',
+        'ios-control': '13px',
+        'ios-pill': '999px',
+      },
+      boxShadow: {
+        'ios-card': '0 1px 0 rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.35)',
+        'ios-alert': '0 4px 16px rgba(0,0,0,0.4), 0 24px 60px rgba(0,0,0,0.5)',
+        'ios-sheet': '0 -4px 24px rgba(0,0,0,0.35), 0 -24px 80px rgba(0,0,0,0.5)',
       },
     },
   },

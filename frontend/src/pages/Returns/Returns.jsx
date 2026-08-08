@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react';
-import Swal from 'sweetalert2';
 import { getReturns, deleteReturn } from '../../api/returns';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
+import { useIosAlert } from '../../components/ui/AlertProvider';
+import { IconReturn } from '../../components/ui/icons';
 
 const Returns = () => {
   const { user } = useAuth();
+  const { confirm, toast, show: alert } = useIosAlert();
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => { fetchReturns(); }, []);
+  useEffect(() => {
+    fetchReturns();
+  }, []);
 
   const fetchReturns = async () => {
-    setLoading(true);
+    setError('');
     try {
       const res = await getReturns();
       setReturns(res.data);
@@ -25,24 +29,24 @@ const Returns = () => {
   };
 
   const handleDelete = async (id) => {
-    const confirmed = await Swal.fire({
-      icon: 'question',
+    const confirmed = await confirm({
+      icon: 'warning',
       title: '¿Eliminar esta devolución?',
-      text: 'El stock del producto se ajustará automáticamente',
-      showCancelButton: true,
-      confirmButtonText: 'Eliminar',
-      cancelButtonText: 'Cancelar',
-      background: '#171717',
-      color: '#fff',
-      confirmButtonColor: '#ef4444',
+      message: 'El stock del producto se ajustará automáticamente',
+      confirmText: 'Eliminar',
+      destructive: true,
     });
-    if (!confirmed.isConfirmed) return;
+    if (!confirmed) return;
     try {
       await deleteReturn(id);
-      Swal.fire({ icon: 'success', title: 'Devolución eliminada', timer: 1500, showConfirmButton: false, background: '#171717', color: '#fff' });
       fetchReturns();
+      toast({ message: 'Devolución eliminada' });
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error al eliminar devolución', background: '#171717', color: '#fff', confirmButtonColor: '#fff', confirmButtonText: 'OK' });
+      alert({
+        icon: 'error',
+        title: 'Error',
+        message: err.response?.data?.message || 'Error al eliminar devolución',
+      });
     }
   };
 
@@ -59,103 +63,100 @@ const Returns = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white mb-6">Historial de Devoluciones</h1>
+      <h1 className="text-[28px] font-bold text-ios-label tracking-tight mb-6">Historial de Devoluciones</h1>
 
       {error && (
-        <div className="bg-red-500/15 border border-red-500/25 text-red-300 px-4 py-2.5 rounded-lg mb-4 text-sm">
+        <div className="mb-4 px-4 py-3 bg-ios-red/10 border border-ios-red/25 rounded-ios-control text-ios-red text-sm font-medium">
           {error}
         </div>
       )}
 
-      <div className="hidden md:block bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-white/5">
-            <tr>
-              <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Producto</th>
-              <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Categoría</th>
-              <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Cantidad</th>
-              <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Talle</th>
-              <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Motivo</th>
-              <th className="text-left px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Fecha</th>
-              <th className="text-right px-4 py-3 text-white/40 font-medium uppercase tracking-wider text-[11px]">Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            {returns.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-8 text-white/30">
-                  No hay devoluciones registradas
-                </td>
-              </tr>
-            ) : (
-              returns.map((r) => (
-                <tr key={r._id} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
-                  <td className="px-4 py-3 font-medium text-white">{r.producto?.nombre}</td>
-                  <td className="px-4 py-3 text-white/50">{r.producto?.categoria || '—'}</td>
-                  <td className="px-4 py-3 text-white">{r.cantidad}</td>
-                  <td className="px-4 py-3 text-white/50">{r.talle || '—'}</td>
-                  <td className="px-4 py-3 text-white/50">{r.motivo}</td>
-                  <td className="px-4 py-3 text-white/30 text-xs">{formatDate(r.createdAt)}</td>
-                  <td className="px-4 py-3 text-right">
-                    {user?.rol === 'admin' && (
-                      <button
-                        onClick={() => handleDelete(r._id)}
-                        className="text-red-400 hover:text-red-300 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
-                      >
-                        Eliminar
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="md:hidden space-y-3">
-        {returns.length === 0 ? (
-          <div className="text-center py-8 text-white/30 text-sm">
-            No hay devoluciones registradas
+      {returns.length === 0 ? (
+        <div className="bg-ios-surface border border-ios-separator/30 rounded-3xl py-14 flex flex-col items-center shadow-ios-card">
+          <div className="w-16 h-16 bg-ios-surface2 rounded-full flex items-center justify-center mb-4 border border-ios-separator/40">
+            <IconReturn className="w-7 h-7 text-ios-tertiary" strokeWidth={1.5} />
           </div>
-        ) : (
-          returns.map((r) => (
-            <div key={r._id} className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-xl p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-medium text-white">{r.producto?.nombre}</p>
-                  <p className="text-xs text-white/30 mt-0.5">
-                    {r.producto?.categoria || '—'}
-                    {r.talle ? ` · Talle ${r.talle}` : ''}
-                  </p>
+          <p className="text-ios-tertiary text-sm">No hay devoluciones registradas</p>
+        </div>
+      ) : (
+        <>
+          <div className="hidden md:block bg-ios-surface border border-ios-separator/30 rounded-3xl overflow-hidden shadow-ios-card">
+            <table className="w-full text-sm">
+              <thead>
+                <tr>
+                  <th className="text-left px-5 py-3 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Producto</th>
+                  <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Categoría</th>
+                  <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Cantidad</th>
+                  <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Talle</th>
+                  <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Motivo</th>
+                  <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Fecha</th>
+                  <th className="text-right px-5 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {returns.map((r) => (
+                  <tr key={r._id} className="border-t border-ios-separator/30 hover:bg-white/[0.03] transition-colors">
+                    <td className="px-5 py-3.5 font-semibold text-ios-label">{r.producto?.nombre}</td>
+                    <td className="px-4 py-3.5 text-ios-secondary">{r.producto?.categoria || '—'}</td>
+                    <td className="px-4 py-3.5 text-ios-label">{r.cantidad}</td>
+                    <td className="px-4 py-3.5 text-ios-secondary">{r.talle || '—'}</td>
+                    <td className="px-4 py-3.5 text-ios-secondary">{r.motivo}</td>
+                    <td className="px-4 py-3.5 text-ios-tertiary text-xs">{formatDate(r.createdAt)}</td>
+                    <td className="px-5 py-3.5 text-right">
+                      {user?.rol === 'admin' && (
+                        <button
+                          onClick={() => handleDelete(r._id)}
+                          className="text-ios-red hover:text-ios-red/80 font-medium text-sm"
+                        >
+                          Eliminar
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="md:hidden space-y-2.5">
+            {returns.map((r) => (
+              <div key={r._id} className="bg-ios-surface border border-ios-separator/30 rounded-3xl p-4 shadow-ios-card">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-ios-label">{r.producto?.nombre}</p>
+                    <p className="text-xs text-ios-tertiary mt-0.5">
+                      {r.producto?.categoria || '—'}
+                      {r.talle ? ` · Talle ${r.talle}` : ''}
+                    </p>
+                  </div>
+                  {user?.rol === 'admin' && (
+                    <button
+                      onClick={() => handleDelete(r._id)}
+                      className="text-ios-red text-xs border border-ios-red/30 px-2.5 py-1 rounded-ios-pill hover:bg-ios-red/10 transition-all font-semibold shrink-0"
+                    >
+                      Eliminar
+                    </button>
+                  )}
                 </div>
-                {user?.rol === 'admin' && (
-                  <button
-                    onClick={() => handleDelete(r._id)}
-                    className="text-red-400 text-xs border border-red-500/30 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all shrink-0"
-                  >
-                    Eliminar
-                  </button>
-                )}
+                <div className="mt-3 pt-3 border-t border-ios-separator/40 space-y-1.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-ios-tertiary text-xs">Cantidad</span>
+                    <span className="text-ios-secondary">{r.cantidad}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-ios-tertiary text-xs">Motivo</span>
+                    <span className="text-ios-secondary text-right">{r.motivo}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-ios-tertiary text-xs">Fecha</span>
+                    <span className="text-ios-secondary text-xs">{formatDate(r.createdAt)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-white/5 space-y-1 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-white/40 text-xs">Cantidad</span>
-                  <span className="text-white/70">{r.cantidad}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/40 text-xs">Motivo</span>
-                  <span className="text-white/70">{r.motivo}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/40 text-xs">Fecha</span>
-                  <span className="text-white/50 text-xs">{formatDate(r.createdAt)}</span>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 };

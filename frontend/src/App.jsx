@@ -15,8 +15,8 @@ function App() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-neutral-900">
-        <LoadingSpinner />
+      <div className="flex items-center justify-center h-screen bg-ios-bg">
+        <LoadingSpinner size="h-10 w-10" />
       </div>
     )
   }
