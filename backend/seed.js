@@ -6,11 +6,8 @@ const plainPassword = process.env.ADMIN_PASSWORD || 'password';
 
 const hash = bcrypt.hashSync(plainPassword, 10);
 
-console.log('=== CREDENCIALES (desde .env) ===');
-console.log(`Email:    ${email}`);
-console.log(`Password: ${plainPassword}`);
-console.log();
-console.log('El usuario admin se crea automáticamente al iniciar el servidor.');
-console.log();
-console.log('Hash generado:');
-console.log(hash);
+console.log(`Email admin: ${email}`);
+console.log('Contraseña configurada (ver backend/.env).');
+
+const passwordOk = bcrypt.compareSync(plainPassword, hash);
+console.log(`Validación del hash: ${passwordOk ? 'OK' : 'ERROR'}`);
