@@ -6,6 +6,7 @@ import {
   deleteNotification,
   completeNotification,
   reopenNotification,
+  markVistasAdmin,
 } from './NotificationController.js';
 import { protect, admin } from '../../middlewares/AuthMiddleware.js';
 
@@ -15,6 +16,7 @@ router.use(protect);
 
 router.get('/', getNotifications);
 router.post('/', admin, createNotification);
+router.patch('/marcar-vistas-admin', admin, markVistasAdmin);
 router.put('/:id', admin, updateNotification);
 router.delete('/:id', admin, deleteNotification);
 router.patch('/:id/completar', completeNotification);

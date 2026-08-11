@@ -74,8 +74,10 @@ export const completeNotification = async (req, res, next) => {
     }
     notification.estado = 'realizado';
     notification.comentario = data.comentario || '';
+    notification.realizadoNombre = data.realizadoNombre;
     notification.realizadoPor = req.user.id;
     notification.realizadoEn = new Date();
+    notification.nuevaParaAdmin = req.user.rol === 'admin' ? false : true;
     await notification.save();
     const populated = await populateUsers(
       Notification.findById(notification._id)
@@ -94,13 +96,27 @@ export const reopenNotification = async (req, res, next) => {
     }
     notification.estado = 'pendiente';
     notification.comentario = '';
+    notification.realizadoNombre = '';
     notification.realizadoPor = null;
     notification.realizadoEn = null;
+    notification.nuevaParaAdmin = false;
     await notification.save();
     const populated = await populateUsers(
       Notification.findById(notification._id)
     );
     res.json(populated);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const markVistasAdmin = async (req, res, next) => {
+  try {
+    await Notification.updateMany(
+      { nuevaParaAdmin: true },
+      { $set: { nuevaParaAdmin: false } }
+    );
+    res.json({ message: 'Notificaciones marcadas como vistas' });
   } catch (error) {
     next(error);
   }

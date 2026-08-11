@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { IconBox, IconChart, IconUsers, IconReturn, IconBell } from '../ui/icons';
+import { useNotifications } from '../../context/NotificationContext';
 
 const links = [
   { to: '/products', label: 'Productos', icon: IconBox, gradient: 'from-sky-500 to-blue-600' },
@@ -10,6 +11,7 @@ const links = [
 ];
 
 const MobileNav = () => {
+  const { pendingCount } = useNotifications();
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-ios-surface/90 backdrop-blur-2xl border-t border-ios-separator/50 safe-bottom">
       <div className="grid grid-cols-5">
@@ -26,17 +28,23 @@ const MobileNav = () => {
           >
             {({ isActive }) => (
               <>
-                <span
-                  className={`flex items-center justify-center w-[30px] h-[30px] rounded-[10px] transition-all duration-200 ${
-                    isActive ? `bg-gradient-to-br ${link.gradient} shadow-[0_3px_8px_rgba(0,0,0,0.4)]` : ''
-                  }`}
-                >
+                <span className="relative flex items-center justify-center w-[30px] h-[30px] rounded-[10px] transition-all duration-200">
+                  <span
+                    className={`absolute inset-0 rounded-[10px] transition-all duration-200 ${
+                      isActive ? `bg-gradient-to-br ${link.gradient} shadow-[0_3px_8px_rgba(0,0,0,0.4)]` : ''
+                    }`}
+                  />
                   <link.icon
-                    className={`w-5 h-5 transition-colors duration-200 ${
+                    className={`relative w-5 h-5 transition-colors duration-200 ${
                       isActive ? 'text-white' : 'text-ios-tertiary'
                     }`}
                     strokeWidth={2}
                   />
+                  {link.to === '/notifications' && pendingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-ios-tint text-white text-[10px] font-bold min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center leading-none shadow-[0_2px_6px_rgba(0,0,0,0.4)]">
+                      {pendingCount > 99 ? '99+' : pendingCount}
+                    </span>
+                  )}
                 </span>
                 {link.label}
               </>

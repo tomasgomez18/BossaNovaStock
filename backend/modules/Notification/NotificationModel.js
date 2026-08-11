@@ -27,6 +27,11 @@ const notificationSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    realizadoNombre: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     realizadoEn: {
       type: Date,
       default: null,
@@ -35,6 +40,10 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+    },
+    nuevaParaAdmin: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }

@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { IconBox, IconChart, IconUsers, IconReturn, IconBell, IconTile } from '../ui/icons';
+import { useNotifications } from '../../context/NotificationContext';
 
 const links = [
   { to: '/products', label: 'Productos', icon: IconBox, gradient: 'from-sky-500 to-blue-600' },
@@ -10,6 +11,7 @@ const links = [
 ];
 
 const Sidebar = () => {
+  const { pendingCount } = useNotifications();
   return (
     <aside className="hidden md:flex w-[260px] bg-ios-surface/70 backdrop-blur-2xl border-r border-ios-separator/40 flex-col shrink-0">
       <div className="px-5 pt-7 pb-6">
@@ -40,14 +42,21 @@ const Sidebar = () => {
           >
             {({ isActive }) => (
               <>
-                <IconTile
-                  gradient={link.gradient}
-                  className={`w-8 h-8 transition-all duration-200 ${
-                    isActive ? 'opacity-100' : 'opacity-60 group-hover:opacity-90'
-                  }`}
-                >
-                  <link.icon className="w-4 h-4 text-white" strokeWidth={2.1} />
-                </IconTile>
+                <span className="relative shrink-0">
+                  <IconTile
+                    gradient={link.gradient}
+                    className={`w-8 h-8 transition-all duration-200 ${
+                      isActive ? 'opacity-100' : 'opacity-60 group-hover:opacity-90'
+                    }`}
+                  >
+                    <link.icon className="w-4 h-4 text-white" strokeWidth={2.1} />
+                  </IconTile>
+                  {link.to === '/notifications' && pendingCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-ios-tint text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center leading-none shadow-[0_2px_6px_rgba(0,0,0,0.4)]">
+                      {pendingCount > 99 ? '99+' : pendingCount}
+                    </span>
+                  )}
+                </span>
                 <span
                   className={`text-[15px] transition-colors duration-200 ${
                     isActive

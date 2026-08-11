@@ -8,22 +8,22 @@ import {
   reopenNotification,
 } from '../../api/notifications';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import ExpandableText from '../../components/common/ExpandableText';
 import IosButton from '../../components/ui/IosButton';
 import IosModal from '../../components/ui/IosModal';
 import { IosField, IosInput, IosTextArea } from '../../components/ui/IosForm';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { useIosAlert } from '../../components/ui/AlertProvider';
-import { IconBell, IconPlus, IconPencil, IconTrash, IconCheck, IconRefresh } from '../../components/ui/icons';
+import { IconBell, IconPlus, IconPencil, IconTrash, IconCheck, IconRefresh, IconChevronRight } from '../../components/ui/icons';
 
 const EstadoBadge = ({ estado }) =>
   estado === 'realizado' ? (
-    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-ios-pill bg-ios-green/15 text-ios-green text-[11px] font-semibold">
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-ios-pill bg-ios-green/15 text-ios-green text-[11px] font-semibold shrink-0">
       <IconCheck className="w-3 h-3" strokeWidth={2.5} />
       Realizado
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-ios-pill bg-ios-orange/15 text-ios-orange text-[11px] font-semibold">
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-ios-pill bg-ios-orange/15 text-ios-orange text-[11px] font-semibold shrink-0">
       Pendiente
     </span>
   );
@@ -41,16 +41,19 @@ const formatDate = (date) =>
 
 const Notifications = () => {
   const { user } = useAuth();
+  const { refresh, markVistasAdmin } = useNotifications();
   const { confirm, toast, show: alert } = useIosAlert();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [detail, setDetail] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ titulo: '', descripcion: '' });
 
   const [completeTarget, setCompleteTarget] = useState(null);
+  const [completeName, setCompleteName] = useState('');
   const [comment, setComment] = useState('');
 
   const isAdmin = user?.rol === 'admin';
@@ -58,6 +61,10 @@ const Notifications = () => {
   useEffect(() => {
     fetchNotifications();
   }, []);
+
+  useEffect(() => {
+    if (isAdmin) markVistasAdmin();
+  }, [isAdmin]);
 
   const fetchNotifications = async () => {
     setError('');
@@ -95,6 +102,7 @@ const Notifications = () => {
       }
       setFormOpen(false);
       fetchNotifications();
+      refresh();
     } catch (err) {
       alert({
         icon: 'error',
@@ -116,6 +124,7 @@ const Notifications = () => {
     try {
       await deleteNotification(n._id);
       fetchNotifications();
+      refresh();
       toast({ message: 'Aviso eliminado' });
     } catch (err) {
       alert({
@@ -128,12 +137,25 @@ const Notifications = () => {
 
   const handleComplete = async () => {
     if (!completeTarget) return;
+    if (!completeName.trim()) {
+      alert({
+        icon: 'warning',
+        title: 'Campo requerido',
+        message: 'Debe indicar quién realizó la tarea',
+      });
+      return;
+    }
     try {
-      await completeNotification(completeTarget._id, { comentario: comment.trim() });
+      await completeNotification(completeTarget._id, {
+        realizadoNombre: completeName.trim(),
+        comentario: comment.trim(),
+      });
       toast({ message: 'Aviso marcado como realizado' });
       setCompleteTarget(null);
+      setCompleteName('');
       setComment('');
       fetchNotifications();
+      refresh();
     } catch (err) {
       alert({
         icon: 'error',
@@ -154,6 +176,7 @@ const Notifications = () => {
     try {
       await reopenNotification(n._id);
       fetchNotifications();
+      refresh();
       toast({ message: 'Aviso reabierto' });
     } catch (err) {
       alert({
@@ -162,6 +185,13 @@ const Notifications = () => {
         message: err.response?.data?.message || 'Error al reabrir el aviso',
       });
     }
+  };
+
+  const openComplete = (n) => {
+    setDetail(null);
+    setCompleteName('');
+    setComment('');
+    setCompleteTarget(n);
   };
 
   if (loading) return <LoadingSpinner />;
@@ -192,157 +222,96 @@ const Notifications = () => {
           <p className="text-ios-tertiary text-sm">No hay avisos para mostrar</p>
         </div>
       ) : (
-        <>
-          <div className="hidden md:block bg-ios-surface border border-ios-separator/30 rounded-3xl overflow-hidden shadow-ios-card">
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <th className="text-left px-5 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Aviso</th>
-                  <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Estado</th>
-                  <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Creado</th>
-                  <th className="text-left px-4 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Realizado</th>
-                  <th className="text-right px-5 py-3.5 text-ios-tertiary font-semibold uppercase tracking-wider text-[11px]">Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {notifications.map((n) => (
-                  <tr key={n._id} className="border-t border-ios-separator/30 hover:bg-white/[0.03] transition-colors align-top">
-                    <td className="px-5 py-3.5 min-w-[240px]">
-                      <p className="font-semibold text-ios-label">{n.titulo}</p>
-                      <ExpandableText text={n.descripcion} />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <EstadoBadge estado={n.estado} />
-                    </td>
-                    <td className="px-4 py-3.5 text-ios-secondary text-xs">
-                      <p className="font-medium text-ios-label text-[13px]">{n.creadoPor?.nombre || '—'}</p>
-                      <p className="text-ios-tertiary mt-0.5">{formatDate(n.createdAt)}</p>
-                    </td>
-                    <td className="px-4 py-3.5 text-ios-secondary text-xs">
-                      {n.estado === 'realizado' ? (
-                        <>
-                          <p className="font-medium text-ios-green text-[13px]">{n.realizadoPor?.nombre || '—'}</p>
-                          <p className="text-ios-tertiary mt-0.5">{formatDate(n.realizadoEn)}</p>
-                          {n.comentario && <p className="text-ios-secondary mt-1.5 italic">"{n.comentario}"</p>}
-                        </>
-                      ) : (
-                        <span className="text-ios-tertiary">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      {isAdmin ? (
-                        <div className="flex items-center justify-end gap-2">
-                          {n.estado === 'realizado' && (
-                            <button
-                              onClick={() => handleReopen(n)}
-                              className="text-ios-orange hover:text-ios-orange/80 font-medium text-sm"
-                            >
-                              Reabrir
-                            </button>
-                          )}
-                          <button
-                            onClick={() => openEdit(n)}
-                            className="text-ios-tint hover:text-ios-tint/80 font-medium text-sm"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleDelete(n)}
-                            className="text-ios-red hover:text-ios-red/80 font-medium text-sm"
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      ) : n.estado === 'pendiente' ? (
-                        <button
-                          onClick={() => {
-                            setComment('');
-                            setCompleteTarget(n);
-                          }}
-                          className="inline-flex items-center gap-1.5 text-ios-green hover:text-ios-green/80 font-semibold text-sm"
-                        >
-                          <IconCheck className="w-4 h-4" strokeWidth={2.4} />
-                          Marcar como realizado
-                        </button>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="md:hidden space-y-2.5">
-            {notifications.map((n) => (
-              <div key={n._id} className="bg-ios-surface border border-ios-separator/30 rounded-3xl p-4 shadow-ios-card">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-ios-label">{n.titulo}</p>
-                    <ExpandableText text={n.descripcion} limit={100} />
-                  </div>
-                  <EstadoBadge estado={n.estado} />
-                </div>
-                <div className="mt-3 pt-3 border-t border-ios-separator/40 space-y-1.5 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-ios-tertiary text-xs">Creado</span>
-                    <span className="text-ios-secondary text-xs">
-                      {n.creadoPor?.nombre || '—'} · {formatDate(n.createdAt)}
-                    </span>
-                  </div>
-                  {n.estado === 'realizado' ? (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <span className="text-ios-tertiary text-xs">Realizado</span>
-                        <span className="text-ios-secondary text-xs">
-                          {n.realizadoPor?.nombre || '—'} · {formatDate(n.realizadoEn)}
-                        </span>
-                      </div>
-                      {n.comentario && (
-                        <p className="text-ios-secondary text-[13px] italic bg-ios-surface2/60 rounded-ios-control px-3 py-2 mt-1">
-                          "{n.comentario}"
-                        </p>
-                      )}
-                    </>
-                  ) : null}
-                </div>
-                <div className="mt-3 flex gap-2">
-                  {isAdmin ? (
-                    <>
-                      {n.estado === 'realizado' && (
-                        <IosButton variant="gray" size="xs" className="flex-1" onClick={() => handleReopen(n)}>
-                          <IconRefresh className="w-3.5 h-3.5" />
-                          Reabrir
-                        </IosButton>
-                      )}
-                      <IosButton variant="tinted" size="xs" className="flex-1" onClick={() => openEdit(n)}>
-                        <IconPencil className="w-3.5 h-3.5" />
-                        Editar
-                      </IosButton>
-                      <IosButton variant="destructiveTinted" size="xs" className="flex-1" onClick={() => handleDelete(n)}>
-                        <IconTrash className="w-3.5 h-3.5" />
-                        Eliminar
-                      </IosButton>
-                    </>
-                  ) : n.estado === 'pendiente' ? (
-                    <IosButton
-                      variant="primary"
-                      size="xs"
-                      className="flex-1 bg-ios-green/15 text-ios-green shadow-none"
-                      onClick={() => {
-                        setComment('');
-                        setCompleteTarget(n);
-                      }}
-                    >
-                      <IconCheck className="w-3.5 h-3.5" strokeWidth={2.4} />
-                      Marcar como realizado
-                    </IosButton>
-                  ) : null}
-                </div>
+        <div className="bg-ios-surface border border-ios-separator/30 rounded-3xl overflow-hidden shadow-ios-card divide-y divide-ios-separator/50">
+          {notifications.map((n) => (
+            <button
+              key={n._id}
+              onClick={() => setDetail(n)}
+              className="w-full flex items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/[0.03] active:bg-white/[0.06]"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-ios-label truncate">{n.titulo}</p>
+                <p className="text-[11px] text-ios-tertiary mt-0.5">{formatDate(n.createdAt)}</p>
               </div>
-            ))}
-          </div>
-        </>
+              <EstadoBadge estado={n.estado} />
+              <IconChevronRight className="w-4 h-4 text-ios-tertiary shrink-0" />
+            </button>
+          ))}
+        </div>
       )}
+
+      <IosModal
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        title={detail?.titulo}
+        showCancel={false}
+        footer={
+          <div className="space-y-2">
+            {detail && !isAdmin && detail.estado === 'pendiente' && (
+              <IosButton variant="primary" className="w-full py-3" onClick={() => openComplete(detail)}>
+                <IconCheck className="w-4 h-4" strokeWidth={2.4} />
+                Marcar como realizado
+              </IosButton>
+            )}
+            {isAdmin && detail?.estado === 'realizado' && (
+              <IosButton variant="gray" className="w-full py-3" onClick={() => { handleReopen(detail); setDetail(null); }}>
+                <IconRefresh className="w-4 h-4" />
+                Reabrir aviso
+              </IosButton>
+            )}
+            {isAdmin && (
+              <>
+                <IosButton variant="tinted" className="w-full py-3" onClick={() => { openEdit(detail); setDetail(null); }}>
+                  <IconPencil className="w-4 h-4" />
+                  Editar aviso
+                </IosButton>
+                <IosButton variant="destructiveTinted" className="w-full py-3" onClick={() => { handleDelete(detail); setDetail(null); }}>
+                  <IconTrash className="w-4 h-4" />
+                  Eliminar aviso
+                </IosButton>
+              </>
+            )}
+            <IosButton variant="gray" className="w-full py-3" onClick={() => setDetail(null)}>
+              Cerrar
+            </IosButton>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <p className="text-[13px] font-medium text-ios-secondary mb-1.5">Descripción</p>
+            <p className="text-sm text-ios-label whitespace-pre-line break-words max-h-[40vh] overflow-y-auto bg-ios-surface2/50 rounded-ios-control px-3.5 py-3">
+              {detail?.descripcion}
+            </p>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-ios-tertiary text-xs shrink-0 pt-0.5">Creado por</span>
+              <span className="text-ios-secondary text-right text-[13px]">
+                {detail?.creadoPor?.nombre || '—'} · {formatDate(detail?.createdAt)}
+              </span>
+            </div>
+            {detail?.estado === 'realizado' && (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-ios-tertiary text-xs shrink-0 pt-0.5">Realizado por</span>
+                  <span className="text-ios-secondary text-right text-[13px]">
+                    {detail?.realizadoNombre || detail?.realizadoPor?.nombre || '—'} · {formatDate(detail?.realizadoEn)}
+                  </span>
+                </div>
+                {detail?.comentario && (
+                  <div>
+                    <span className="text-ios-tertiary text-xs">Comentario</span>
+                    <p className="text-ios-secondary text-[13px] italic bg-ios-surface2/60 rounded-ios-control px-3 py-2 mt-1 break-words whitespace-pre-line">
+                      "{detail.comentario}"
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </IosModal>
 
       <IosModal
         open={formOpen}
@@ -377,14 +346,23 @@ const Notifications = () => {
         confirmText="Confirmar"
         onConfirm={handleComplete}
       >
-        <IosField label="Comentario (opcional)" hint="Contanos cómo quedó el trabajo">
-          <IosTextArea
-            rows={3}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder="Ej: Limpie la tienda y dejé todo en orden…"
-          />
-        </IosField>
+        <div className="space-y-4">
+          <IosField label="¿Quién realizó la tarea?" required>
+            <IosInput
+              value={completeName}
+              onChange={(e) => setCompleteName(e.target.value)}
+              placeholder="Nombre del empleado"
+            />
+          </IosField>
+          <IosField label="Comentario (opcional)" hint="Contanos cómo quedó el trabajo">
+            <IosTextArea
+              rows={3}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Ej: Limpie la tienda y dejé todo en orden…"
+            />
+          </IosField>
+        </div>
       </IosModal>
     </div>
   );

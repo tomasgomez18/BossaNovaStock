@@ -1,93 +1,71 @@
 import { useState, useEffect } from 'react';
 import IosButton from '../ui/IosButton';
-import { IconTile, IconBox, IconChart, IconReturn, IconBell, IconUsers, IconList } from '../ui/icons';
+import { IconTile, IconBell, IconCheck, IconPencil, IconUsers, IconList } from '../ui/icons';
 import { useAuth } from '../../context/AuthContext';
 
-const DAYS_3 = 3 * 24 * 60 * 60 * 1000;
-const KEY_PREFIX = 'bn_guide_';
+const HOURS_24 = 24 * 60 * 60 * 1000;
+const KEY_PREFIX = 'bn_guide_notifs_';
 
 const contenido = {
   admin: [
     {
-      key: 'inicio',
-      icon: IconList,
-      gradient: 'from-sky-500 to-blue-600',
-      title: 'Tu rol: Administrador',
-      desc: 'Sos el dueño de la tienda. Tenés acceso total al sistema para administrar todo.',
-    },
-    {
-      key: 'productos',
-      icon: IconBox,
-      gradient: 'from-sky-500 to-blue-600',
-      title: 'Productos',
-      desc: 'Crear, editar y eliminar productos, controlar el stock y ver los que están bajos.',
-    },
-    {
-      key: 'ventas',
-      icon: IconChart,
-      gradient: 'from-emerald-500 to-teal-600',
-      title: 'Ventas',
-      desc: 'Ver estadísticas, historial de ventas y cierres de caja.',
-    },
-    {
-      key: 'proveedores',
-      icon: IconUsers,
-      gradient: 'from-indigo-500 to-purple-600',
-      title: 'Proveedores',
-      desc: 'Gestionar la lista de proveedores de la tienda.',
-    },
-    {
-      key: 'devoluciones',
-      icon: IconReturn,
-      gradient: 'from-orange-500 to-rose-600',
-      title: 'Devoluciones',
-      desc: 'Ver el historial de devoluciones y cambios realizados.',
-    },
-    {
-      key: 'notificaciones',
+      key: 'que-es',
       icon: IconBell,
       gradient: 'from-cyan-500 to-sky-600',
-      title: 'Notificaciones',
-      desc: 'Crear avisos para tus empleados (tareas, pagos, limpieza…). Podés editarlos, reabrirlos o eliminarlos. Ellos los leen y los marcan como realizados con un comentario.',
+      title: '¿Qué es?',
+      desc: 'El sistema de Notificaciones te deja enviar avisos a tus empleados: tareas como limpiar la tienda, pagos pendientes, recordatorios, etc.',
+    },
+    {
+      key: 'como-funciona',
+      icon: IconList,
+      gradient: 'from-sky-500 to-blue-600',
+      title: 'Cómo funciona',
+      desc: 'Creás un aviso con título y descripción. Al instante aparece el número de pendientes en el botón Notificaciones y una tarjeta abajo a la derecha en la pantalla de tus empleados.',
+    },
+    {
+      key: 'que-podes-hacer',
+      icon: IconPencil,
+      gradient: 'from-indigo-500 to-purple-600',
+      title: 'Lo que podés hacer',
+      desc: 'Crear, editar y eliminar avisos, y reabrirlos si el trabajo quedó mal hecho. Cuando un empleado lo marca como realizado, ves quién lo hizo y su comentario.',
     },
   ],
   empleado: [
     {
-      key: 'inicio',
-      icon: IconList,
-      gradient: 'from-sky-500 to-blue-600',
-      title: 'Tu rol: Empleado',
-      desc: 'Este sistema es para que la tienda funcione en equipo con el dueño. Esto es lo que vas a poder hacer:',
-    },
-    {
-      key: 'productos',
-      icon: IconBox,
-      gradient: 'from-sky-500 to-blue-600',
-      title: 'Productos',
-      desc: 'Ves todo el stock de la tienda. Tocá un producto para venderlo o hacer un cambio.',
-    },
-    {
-      key: 'ventas',
-      icon: IconChart,
-      gradient: 'from-emerald-500 to-teal-600',
-      title: 'Ventas',
-      desc: 'Historial de las ventas del día y cierres de caja.',
-    },
-    {
-      key: 'devoluciones',
-      icon: IconReturn,
-      gradient: 'from-orange-500 to-rose-600',
-      title: 'Devoluciones',
-      desc: 'Historial de las devoluciones o cambios que se registran.',
-    },
-    {
-      key: 'notificaciones',
+      key: 'que-es',
       icon: IconBell,
       gradient: 'from-cyan-500 to-sky-600',
-      title: 'Notificaciones',
-      desc: 'Acá aparecen los avisos del dueño: tareas como limpiar la tienda, pagos pendientes, etc. Leelos, marcá cada aviso como realizado y dejá un comentario cuando lo hagas.',
+      title: '¿Qué es?',
+      desc: 'El sistema de Notificaciones es el canal del dueño para darte tareas: limpiar la tienda, pagos pendientes, recordatorios, etc.',
+    },
+    {
+      key: 'como-funciona',
+      icon: IconList,
+      gradient: 'from-sky-500 to-blue-600',
+      title: 'Cómo funciona',
+      desc: 'Cuando hay un aviso nuevo, aparece un número en el botón Notificaciones y una tarjeta abajo a la derecha. Entrá a la sección y tocá el aviso para leerlo completo.',
+    },
+    {
+      key: 'que-podes-hacer',
+      icon: IconCheck,
+      gradient: 'from-emerald-500 to-teal-600',
+      title: 'Lo que podés hacer',
+      desc: 'Leer los avisos, marcarlos como realizado indicando quién hizo la tarea (obligatorio) y dejar un comentario contando cómo quedó el trabajo.',
     },
   ],
+};
+
+const readState = (key) => {
+  const raw = localStorage.getItem(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.firstSeen === 'number') return parsed;
+  } catch {
+    /* formato viejo (timestamp plano): ya visto, no molestar */
+  }
+  localStorage.removeItem(key);
+  return null;
 };
 
 const RoleGuideOverlay = () => {
@@ -96,30 +74,35 @@ const RoleGuideOverlay = () => {
 
   const rol = user?.rol === 'admin' ? 'admin' : 'empleado';
   const items = contenido[rol];
+  const key = KEY_PREFIX + rol;
 
   useEffect(() => {
     if (!user) return;
-    const key = KEY_PREFIX + rol;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      const date = Number(stored);
-      if (!isNaN(date) && Date.now() - date < DAYS_3) {
-        setVisible(true);
-      } else {
-        localStorage.removeItem(key);
-      }
-    } else {
-      localStorage.setItem(key, String(Date.now()));
+    const state = readState(key);
+    if (!state) {
+      localStorage.setItem(key, JSON.stringify({ firstSeen: Date.now(), dismissed: false }));
       setVisible(true);
+      return;
     }
-  }, [user, rol]);
+    if (state.dismissed) return;
+    if (Date.now() - state.firstSeen < HOURS_24) {
+      setVisible(true);
+    } else {
+      localStorage.removeItem(key);
+    }
+  }, [user, rol, key]);
+
+  const dismiss = () => {
+    localStorage.setItem(key, JSON.stringify({ firstSeen: Date.now(), dismissed: true }));
+    setVisible(false);
+  };
 
   if (!visible) return null;
 
   return (
     <div
       className="fixed inset-0 bg-black/50 backdrop-blur-2xl flex items-center justify-center z-[100] px-4 py-6"
-      onClick={() => setVisible(false)}
+      onClick={dismiss}
     >
       <div
         className="bg-ios-surface/95 border border-white/[0.07] rounded-[28px] shadow-ios-alert w-full max-w-md flex flex-col max-h-[86dvh] animate-ios-centered overflow-hidden"
@@ -132,12 +115,12 @@ const RoleGuideOverlay = () => {
             </IconTile>
             <div>
               <h2 className="text-[19px] font-bold text-ios-label tracking-tight leading-tight">
-                Bienvenido a Bossa Nova
+                Novedad: Notificaciones
               </h2>
               <p className="text-[13px] text-ios-tertiary font-medium">
                 {rol === 'admin'
-                  ? 'Guía rápida de tu panel de administrador'
-                  : 'Guía rápida de tu panel de empleado'}
+                  ? 'Avisos para tus empleados, así funcionan'
+                  : 'Los avisos del dueño, así funcionan'}
               </p>
             </div>
           </div>
@@ -165,12 +148,12 @@ const RoleGuideOverlay = () => {
             variant="primary"
             size="lg"
             className="w-full"
-            onClick={() => setVisible(false)}
+            onClick={dismiss}
           >
             Entendido
           </IosButton>
           <p className="text-center text-[11px] text-ios-tertiary mt-3">
-            Esta guía estará disponible por 3 días desde tu primer ingreso y luego desaparecerá.
+            Esta guía se muestra una sola vez, durante las primeras 24 horas desde tu primer ingreso.
           </p>
         </div>
       </div>

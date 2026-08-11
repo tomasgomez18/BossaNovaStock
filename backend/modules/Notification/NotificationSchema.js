@@ -11,5 +11,6 @@ export const updateNotificationSchema = z.object({
 });
 
 export const completeNotificationSchema = z.object({
+  realizadoNombre: z.string().min(1, 'Debe indicar quién realizó la tarea'),
   comentario: z.string().optional().default(''),
 });
