@@ -23,6 +23,7 @@ import SupplierRoutes from './modules/Supplier/SupplierRoutes.js';
 import ProductRoutes from './modules/Product/ProductRoutes.js';
 import ReturnRoutes from './modules/Return/ReturnRoutes.js';
 import SaleRoutes from './modules/Sale/SaleRoutes.js';
+import NotificationRoutes from './modules/Notification/NotificationRoutes.js';
 import User from './modules/Auth/AuthModel.js';
 
 const app = express();
@@ -56,6 +57,7 @@ app.use('/api/suppliers', SupplierRoutes);
 app.use('/api/products', ProductRoutes);
 app.use('/api/returns', ReturnRoutes);
 app.use('/api/sales', SaleRoutes);
+app.use('/api/notifications', NotificationRoutes);
 
 app.use('/api/*', (req, res) => {
   res.status(404).json({ message: 'Ruta no encontrada' });

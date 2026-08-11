@@ -35,6 +35,7 @@ export const IconCash = (p) => <Icon {...p} d="M4 7h16a2 2 0 012 2v6a2 2 0 01-2 
 export const IconBank = (p) => <Icon {...p} d="M3 21h18M4 21V10m4 11V10m4 11V10m4 11V10m5-4L12 2 3 10z" />;
 export const IconCard = (p) => <Icon {...p} d="M3 5h18a1 1 0 011 1v12a1 1 0 01-1 1H3a1 1 0 01-1-1V6a1 1 0 011-1zm-1 5h20M6 16h4" />;
 export const IconLock = (p) => <Icon {...p} d="M12 15v3m-6-9h12v11a1 1 0 01-1 1H7a1 1 0 01-1-1V9zm2 0V7a4 4 0 118 0v2" />;
+export const IconBell = (p) => <Icon {...p} d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" />;
 
 export const IconTile = ({ children, gradient = 'from-sky-500 to-blue-600', className = 'w-7 h-7' }) => (
   <span

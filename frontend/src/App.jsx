@@ -7,8 +7,10 @@ import Products from './pages/Products/Products'
 import Suppliers from './pages/Suppliers/Suppliers'
 import Returns from './pages/Returns/Returns'
 import Sales from './pages/Sales/Sales'
+import Notifications from './pages/Notifications/Notifications'
 import LoadingSpinner from './components/common/LoadingSpinner'
 import WelcomeOverlay from './components/Layout/WelcomeOverlay'
+import RoleGuideOverlay from './components/Layout/RoleGuideOverlay'
 
 function App() {
   const { user, loading } = useAuth()
@@ -37,11 +39,13 @@ function App() {
           <Route path="sales" element={<Sales />} />
           <Route path="suppliers" element={<Suppliers />} />
           <Route path="returns" element={<Returns />} />
+          <Route path="notifications" element={<Notifications />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {!user && <LoginModal />}
       {user && <WelcomeOverlay />}
+      {user && <RoleGuideOverlay />}
     </>
   )
 }

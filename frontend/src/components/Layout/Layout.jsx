@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import MobileNav from './MobileNav';
+import NewNotificationAlert from './NewNotificationAlert';
 
 const Layout = () => {
   return (
@@ -16,6 +17,7 @@ const Layout = () => {
         </main>
       </div>
       <MobileNav />
+      <NewNotificationAlert />
     </div>
   );
 };

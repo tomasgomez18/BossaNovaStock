@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { IconBox, IconChart, IconUsers, IconReturn, IconTile } from '../ui/icons';
+import { IconBox, IconChart, IconUsers, IconReturn, IconBell, IconTile } from '../ui/icons';
 
 const links = [
   { to: '/products', label: 'Productos', icon: IconBox, gradient: 'from-sky-500 to-blue-600' },
   { to: '/sales', label: 'Ventas', icon: IconChart, gradient: 'from-emerald-500 to-teal-600' },
   { to: '/suppliers', label: 'Proveedores', icon: IconUsers, gradient: 'from-indigo-500 to-purple-600' },
   { to: '/returns', label: 'Devoluciones', icon: IconReturn, gradient: 'from-orange-500 to-rose-600' },
+  { to: '/notifications', label: 'Notificaciones', icon: IconBell, gradient: 'from-cyan-500 to-sky-600' },
 ];
 
 const Sidebar = () => {
