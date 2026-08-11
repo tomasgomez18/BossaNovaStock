@@ -268,6 +268,12 @@ export const getDailyClose = async (req, res, next) => {
     if (!esHoy && existing) {
       return res.status(400).json({ message: 'Ese turno de esa fecha ya fue cerrado' });
     }
+    if (!esHoy && !existing) {
+      const legacyClose = await DailyClose.findOne({ fecha: fechaDate, turno: { $exists: false } });
+      if (legacyClose) {
+        return res.status(400).json({ message: 'Ese turno de esa fecha ya fue cerrado' });
+      }
+    }
 
     let desdeAt;
     if (existing?.hastaAt) {
@@ -323,23 +329,36 @@ export const getDailyClose = async (req, res, next) => {
       return acc;
     }, {});
 
-    const close = await DailyClose.findOneAndUpdate(
-      { fecha: fechaDate, turno },
-      {
-        fecha: fechaDate,
-        turno,
-        desdeAt,
-        hastaAt,
-        cerradoPor,
-        total,
-        cantidad,
-        efectivo: porMetodo.efectivo || { total: 0, cantidad: 0 },
-        transferencia: porMetodo.transferencia || { total: 0, cantidad: 0 },
-        tarjeta: porMetodo.tarjeta || { total: 0, cantidad: 0 },
-        cerradoAt: new Date(),
-      },
-      { upsert: true, new: true }
-    );
+    const buildClose = () =>
+      DailyClose.findOneAndUpdate(
+        { fecha: fechaDate, turno },
+        {
+          fecha: fechaDate,
+          turno,
+          desdeAt,
+          hastaAt,
+          cerradoPor,
+          total,
+          cantidad,
+          efectivo: porMetodo.efectivo || { total: 0, cantidad: 0 },
+          transferencia: porMetodo.transferencia || { total: 0, cantidad: 0 },
+          tarjeta: porMetodo.tarjeta || { total: 0, cantidad: 0 },
+          cerradoAt: new Date(),
+        },
+        { upsert: true, new: true }
+      );
+
+    let close;
+    try {
+      close = await buildClose();
+    } catch (error) {
+      if (error.code === 11000) {
+        close = await DailyClose.findOne({ fecha: fechaDate, turno });
+        if (!close) throw error;
+      } else {
+        throw error;
+      }
+    }
 
     let totalDia = null;
     if (turno === 'tarde') {

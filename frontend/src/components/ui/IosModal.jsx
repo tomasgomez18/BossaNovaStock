@@ -10,6 +10,7 @@ const IosModal = ({
   confirmText = 'Confirmar',
   onConfirm,
   confirmVariant = 'primary',
+  confirmDisabled = false,
   cancelText = 'Cancelar',
   showCancel = true,
   maxWidth = 'max-w-lg',
@@ -56,7 +57,7 @@ const IosModal = ({
                       {cancelText}
                     </IosButton>
                   )}
-                  <IosButton variant={confirmVariant} onClick={onConfirm} className="flex-1 py-3">
+                  <IosButton variant={confirmVariant} onClick={onConfirm} className="flex-1 py-3" disabled={confirmDisabled}>
                     {confirmText}
                   </IosButton>
                 </div>
@@ -84,7 +85,7 @@ const IosModal = ({
                       {cancelText}
                     </IosButton>
                   )}
-                  <IosButton variant={confirmVariant} onClick={onConfirm} className="flex-1 py-3">
+                  <IosButton variant={confirmVariant} onClick={onConfirm} className="flex-1 py-3" disabled={confirmDisabled}>
                     {confirmText}
                   </IosButton>
                 </div>

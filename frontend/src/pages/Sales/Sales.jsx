@@ -241,6 +241,7 @@ const Sales = () => {
   };
 
   const doDailyClose = async () => {
+    if (closeSaving) return;
     const nombre = closeNombre.trim();
     if (!nombre) {
       alert({ icon: 'warning', title: 'Campo requerido', message: 'Debe indicar quién cierra el turno' });
@@ -248,6 +249,17 @@ const Sales = () => {
     }
     const turno = closeForm;
     const hoy = today();
+
+    if (closeFecha !== hoy) {
+      const confirmado = await confirm({
+        icon: 'warning',
+        title: `¿Cerrar el turno del ${new Date(`${closeFecha}T00:00:00`).toLocaleDateString('es-AR')}?`,
+        message: 'Estás cerrando un turno de un día anterior. Verificá los montos antes de confirmar.',
+        confirmText: 'Sí, cerrar',
+      });
+      if (!confirmado) return;
+    }
+
     setCloseSaving(true);
     try {
       const params = { offset: new Date().getTimezoneOffset(), turno, cerradoPor: nombre };
@@ -256,16 +268,6 @@ const Sales = () => {
       const d = res.data;
       setCloseForm(null);
       setCloseSaving(false);
-
-      if (closeFecha !== hoy) {
-        const confirmado = await confirm({
-          icon: 'warning',
-          title: `¿Cerrar el turno del ${new Date(`${closeFecha}T00:00:00`).toLocaleDateString('es-AR')}?`,
-          message: 'Estás cerrando un turno de un día anterior. Verificá los montos antes de confirmar.',
-          confirmText: 'Sí, cerrar',
-        });
-        if (!confirmado) return;
-      }
 
       const fechaLabel = new Date(d.fecha).toLocaleDateString('es-AR', {
         day: '2-digit',
@@ -945,6 +947,7 @@ const Sales = () => {
         cancelText="Cancelar"
         confirmText={closeSaving ? 'Cerrando…' : 'Confirmar cierre'}
         onConfirm={doDailyClose}
+        confirmDisabled={closeSaving}
         maxWidth="max-w-sm"
       >
         <div className="space-y-4">
