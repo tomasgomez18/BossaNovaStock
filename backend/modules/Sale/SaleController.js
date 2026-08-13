@@ -354,7 +354,15 @@ export const getDailyClose = async (req, res, next) => {
     } catch (error) {
       if (error.code === 11000) {
         close = await DailyClose.findOne({ fecha: fechaDate, turno });
-        if (!close) throw error;
+        if (!close) {
+          const otroCierre = await DailyClose.findOne({ fecha: fechaDate });
+          if (otroCierre) {
+            return res.status(400).json({
+              message: `Ya existe un cierre registrado para esa fecha (turno ${otroCierre.turno || 'sin turno'}). Si el problema persiste, ejecute la corrección de índices de cierres.`,
+            });
+          }
+          throw error;
+        }
       } else {
         throw error;
       }
@@ -458,6 +466,63 @@ export const deleteDailyClose = async (req, res, next) => {
       return res.status(404).json({ message: 'Cierre no encontrado' });
     }
     res.json({ message: 'Cierre eliminado correctamente' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const mapIndexInfo = (ix) => ({ name: ix.name, key: ix.key, unique: !!ix.unique });
+
+export const getDailyCloseIndexes = async (req, res, next) => {
+  try {
+    const indexes = await DailyClose.collection.indexes();
+    res.json(indexes.map(mapIndexInfo));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const fixDailyCloseIndexes = async (req, res, next) => {
+  try {
+    const before = await DailyClose.collection.indexes();
+
+    for (const ix of before) {
+      if (ix.name === '_id_') continue;
+      if (JSON.stringify(ix.key) === JSON.stringify({ fecha: 1, turno: 1 })) continue;
+      try {
+        await DailyClose.collection.dropIndex(ix.name);
+      } catch (dropError) {
+        console.error(`[Indexes] No se pudo dropear ${ix.name}:`, dropError.message);
+      }
+    }
+
+    const compoundExists = (await DailyClose.collection.indexes()).some(
+      (ix) => JSON.stringify(ix.key) === JSON.stringify({ fecha: 1, turno: 1 })
+    );
+    if (!compoundExists) {
+      try {
+        await DailyClose.collection.createIndex({ fecha: 1, turno: 1 }, { unique: true });
+      } catch (indexError) {
+        return res.status(500).json({
+          message: `No se pudo crear el índice único { fecha, turno }: ${indexError.message}`,
+          indices: (await DailyClose.collection.indexes()).map(mapIndexInfo),
+        });
+      }
+    }
+
+    const after = await DailyClose.collection.indexes();
+
+    const legacyDocs = await DailyClose.find({ turno: { $exists: false } })
+      .select('fecha desdeAt hastaAt')
+      .lean();
+
+    res.json({
+      message: 'Índices de dailycloses corregidos',
+      antes: before.map(mapIndexInfo),
+      despues: after.map(mapIndexInfo),
+      documentosLegacySinTurno: legacyDocs.length,
+      legacy: legacyDocs,
+    });
   } catch (error) {
     next(error);
   }

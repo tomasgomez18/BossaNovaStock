@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createSale, deleteSale, getSales, getSalesStats, getMostSold, getDailyClose, getDailyCloses, deleteDailyClose, resendCloseMail, mailTest, mailStatus, netProbe, runMigration } from './SaleController.js';
+import { createSale, deleteSale, getSales, getSalesStats, getMostSold, getDailyClose, getDailyCloses, deleteDailyClose, getDailyCloseIndexes, fixDailyCloseIndexes, resendCloseMail, mailTest, mailStatus, netProbe, runMigration } from './SaleController.js';
 import { protect, admin } from '../../middlewares/AuthMiddleware.js';
 
 const router = Router();
@@ -7,6 +7,8 @@ const router = Router();
 router.use(protect);
 
 router.get('/daily-close', getDailyClose);
+router.get('/daily-close-indexes', admin, getDailyCloseIndexes);
+router.post('/fix-daily-close-indexes', admin, fixDailyCloseIndexes);
 router.get('/daily-closes', getDailyCloses);
 router.delete('/daily-closes/:id', admin, deleteDailyClose);
 router.post('/daily-closes/:id/resend-mail', protect, resendCloseMail);
